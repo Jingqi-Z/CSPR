@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-07-25 11:26:04 by Eclipse SUMO netedit Version 1.20.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/neteditConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="D:\Code\Sumo\hybrid-TL\net\single-stage2.net.xml"/>
+    </input>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="0"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="0"/>
+        <junctions.limit-turn-speed value="-1.00"/>
+        <rectangular-lane-cut value="0"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="0"/>
+    </pedestrian>
+
+</configuration>
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <tlLogic id="t" type="static" programID="0" offset="0">
+        <phase duration="27" state="OGrOrrOGrOrr" minDur="10" maxDur="30"/>
+        <phase duration="3"  state="OyrOrrOyrOrr"/>
+        <phase duration="27" state="OrGOrrOrGOrr" minDur="10" maxDur="30"/>
+        <phase duration="3"  state="OryOurOryOur"/>
+        <phase duration="27" state="OrrOGrOrrOGr" minDur="10" maxDur="50"/>
+        <phase duration="3"  state="OrrOyuOrrOyu"/>
+        <phase duration="27" state="OrrOrGOrrOrG" minDur="10" maxDur="50"/>
+        <phase duration="3"  state="OrrOryOrrOry"/>
+        <param key="device.glosa.range" value="60"/>
+    </tlLogic>
+</additional>

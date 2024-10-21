@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+        
+<!-- generated on 2024-09-23 20:50:18 by Python-->
+
+<routes>
+    <!-- VTypes -->
+
+    <vType id="CAV_STRAIGHT" minGap="2.0" maxSpeed="15" color="yellow" carFollowModel="IDM" tau="1.5"
+           accel="3.0" decel="3.0"/>
+    <vType id="CAV_LEFT" minGap="2.0" maxSpeed="15" color="red" carFollowModel="IDM" tau="1.5"
+           accel="3.0" decel="3.0"/>
+    <vType id="CAV_RIGHT" minGap="2.0" maxSpeed="15" color="green" carFollowModel="IDM" tau="1.5"
+           accel="3.0" decel="3.0"/>
+    <vType id="HV_STRAIGHT" minGap="2.50" maxSpeed="15" color="255,250,205" carFollowModel="IDM"
+           accel="2" decel="2" tau="2.0"/>
+    <vType id="HV_LEFT" minGap="2.50" maxSpeed="15" color="240,128,128" carFollowModel="IDM" accel="2"
+           decel="2" tau="2.0"/>
+    <vType id="HV_RIGHT" minGap="2.50" maxSpeed="15" color="173,255,47" carFollowModel="IDM" accel="2"
+           decel="2" tau="2.0"/>
+    <vType id="CAV_PLATOON" minGap="1.50" maxSpeed="15" color="0,0,255" carFollowModel="CACC" accel="3"
+           decel="3" tau="0.4"/>
+    <!-- Routes -->
+    <route id="route_en" edges="e_t e_t_nc t_n"/>
+    <route id="route_es" edges="e_t e_t_nc t_s"/>
+    <route id="route_ew" edges="e_t e_t_nc t_w"/>
+    <route id="route_ne" edges="n_t n_t_nc t_e"/>
+    <route id="route_ns" edges="n_t n_t_nc t_s"/>
+    <route id="route_nw" edges="n_t n_t_nc t_w"/>
+    <route id="route_se" edges="s_t s_t_nc t_e"/>
+    <route id="route_sn" edges="s_t s_t_nc t_n"/>
+    <route id="route_sw" edges="s_t s_t_nc t_w"/>
+    <route id="route_we" edges="w_t w_t_nc t_e"/>
+    <route id="route_wn" edges="w_t w_t_nc t_n"/>
+    <route id="route_ws" edges="w_t w_t_nc t_s"/>
+
+    <!-- Flows on Northern route -->
+    <flow id="flow_ns_cav" type="CAV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_ns" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_ns_hv" type="HV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_ns" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_ne_cav" type="CAV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_ne" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_ne_hv" type="HV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_ne" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_nw_cav" type="CAV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_nw" end="3600.00" probability="0.013888888888888888"/>
+    <flow id="flow_nw_hv" type="HV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_nw" end="3600.00" probability="0.013888888888888888"/>
+    <!-- Flows on Southern route -->
+    <flow id="flow_sn_cav" type="CAV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_sn" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_sn_hv" type="HV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_sn" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_sw_cav" type="CAV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_sw" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_sw_hv" type="HV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_sw" end="3600.00" probability="0.027777777777777776"/>
+    <flow id="flow_se_cav" type="CAV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_se" end="3600.00" probability="0.013888888888888888"/>
+    <flow id="flow_se_hv" type="HV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_se" end="3600.00" probability="0.013888888888888888"/>
+    <!-- Flows on Western and Eastern routes -->
+    <flow id="flow_ew_cav" type="CAV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_ew" end="3600.00" probability="0.06944444444444445"/>
+    <flow id="flow_ew_hv" type="HV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_ew" end="3600.00" probability="0.06944444444444445"/>
+    <flow id="flow_es_cav" type="CAV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_es" end="3600.00" probability="0.0625"/>
+    <flow id="flow_es_hv" type="HV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_es" end="3600.00" probability="0.0625"/>
+    <flow id="flow_en_cav" type="CAV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_en" end="3600.00" probability="0.034722222222222224"/>
+    <flow id="flow_en_hv" type="HV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_en" end="3600.00" probability="0.034722222222222224"/>
+
+    <flow id="flow_we_cav" type="CAV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_we" end="3600.00" probability="0.06944444444444445"/>
+    <flow id="flow_we_hv" type="HV_STRAIGHT" begin="0.00" departLane="1" departSpeed="random" route="route_we" end="3600.00" probability="0.06944444444444445"/>
+    <flow id="flow_wn_cav" type="CAV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_wn" end="3600.00" probability="0.0625"/>
+    <flow id="flow_wn_hv" type="HV_LEFT" begin="0.00" departLane="2" departSpeed="random" route="route_wn" end="3600.00" probability="0.0625"/>
+    <flow id="flow_ws_cav" type="CAV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_ws" end="3600.00" probability="0.034722222222222224"/>
+    <flow id="flow_ws_hv" type="HV_RIGHT" begin="0.00" departLane="0" departSpeed="random" route="route_ws" end="3600.00" probability="0.034722222222222224"/>
+    <!-- Vehicles, persons and containers (sorted by depart) -->
+    
+</routes>

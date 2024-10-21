@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-04-11 20:13:54 by Eclipse SUMO netedit Version 1.19.0
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <!-- Other additionals -->
+<!--    <inductionLoop id="Loop_w_left" lane="w_t_nc_2" pos="10" period="300" file="out.xml"/>-->
+<!--    <inductionLoop id="Loop_w_stra" lane="w_t_nc_1" pos="10" period="300" file="out.xml"/>-->
+<!--    <inductionLoop id="Loop_left" lane="w_t_nc_2" pos="-30" period="300" file="out.xml"/>-->
+<!--    <inductionLoop id="Loop_1" lane="w_t_nc_1" pos="-30" period="300" file="out.xml"/>-->
+<!--    <inductionLoop id="Loop_right" lane="w_t_nc_0" pos="-30" period="300" file="out.xml"/>-->
+    <!-- tlLogic static/actuated/delay_based-->
+    <tlLogic id="t" programID="8-phase" offset="0" type="static">
+        <phase duration="100" state="OGrOrrOGrOrr"/>
+        <phase duration="100" state="OrGOrrOrGOrr"/>
+        <phase duration="100" state="OrrOGrOrrOGr"/>
+        <phase duration="100" state="OrrOrGOrrOrG"/>
+        <phase duration="100" state="OGGOrrOrrOrr"/>
+        <phase duration="100" state="OrrOGGOrrOrr"/>
+        <phase duration="100" state="OrrOrrOGGOrr"/>
+        <phase duration="100" state="OrrOrrOrrOGG"/>
+        <phase duration="100" state="OyrOrrOyrOrr"/>
+        <phase duration="100" state="OgrOrrOyrOrr"/>
+        <phase duration="100" state="OyrOrrOgrOrr"/>
+        <phase duration="100" state="OryOrrOryOrr"/>
+        <phase duration="100" state="OrGOrrOryOrr"/>
+        <phase duration="100" state="OryOrrOrGOrr"/>
+        <phase duration="100" state="OrrOyrOrrOyr"/>
+        <phase duration="100" state="OrrOGrOrrOyr"/>
+        <phase duration="100" state="OrrOyrOrrOGr"/>
+        <phase duration="100" state="OrrOryOrrOry"/>
+        <phase duration="100" state="OrrOrGOrrOry"/>
+        <phase duration="100" state="OrrOryOrrOrG"/>
+        <phase duration="100" state="OGyOrrOrrOrr"/>
+        <phase duration="100" state="OyGOrrOrrOrr"/>
+        <phase duration="100" state="OyyOrrOrrOrr"/>
+        <phase duration="100" state="OrrOyyOrrOrr"/>
+        <phase duration="100" state="OrrOGyOrrOrr"/>
+        <phase duration="100" state="OrrOyGOrrOrr"/>
+        <phase duration="100" state="OrrOrrOGyOrr"/>
+        <phase duration="100" state="OrrOrrOyGOrr"/>
+        <phase duration="100" state="OrrOrrOyyOrr"/>
+        <phase duration="100" state="OrrOrrOrrOyy"/>
+        <phase duration="100" state="OrrOrrOrrOGy"/>
+        <phase duration="100" state="OrrOrrOrrOyG"/>
+    </tlLogic>
+    <tlLogic id="t" programID="1" offset="0" type="actuated">
+        <param key="max-gap" value="4.2"/>
+<!--        <param key="detector-gap" value="2.0"/>-->
+<!--        <param key="passing-time" value="2.0"/>-->
+<!--        <param key="vTypes" value=""/>-->
+        <param key="show-detectors" value="true"/>
+<!--        <param key="file" value="NUL"/>-->
+<!--        <param key="freq" value="300"/>-->
+<!--        <param key="jam-threshold" value="-1"/>-->
+<!--        <param key="detector-length" value="0"/>-->
+<!--        <param key="detectorRange" value="136" />-->
+<!--        <param key="minTimeLoss" value="2" />-->
+        <phase duration="27" state="OGrOrrOGrOrr" minDur="10" maxDur="30" name="s-n"/>
+        <phase duration="3"  state="OyrOrrOyrOrr"/>
+        <phase duration="27" state="OrGOrrOrGOrr" minDur="10" maxDur="30" name="s-w"/>
+        <phase duration="3"  state="OryOurOryOur"/>
+        <phase duration="27" state="OrrOGrOrrOGr" minDur="10" maxDur="50" name="w-e"/>
+        <phase duration="3"  state="OrrOyuOrrOyu"/>
+        <phase duration="27" state="OrrOrGOrrOrG" minDur="10" maxDur="50" name="w-n"/>
+        <phase duration="3"  state="OrrOryOrrOry"/>
+    </tlLogic>
+</additional>

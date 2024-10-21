@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-07-25 11:47:26 by Eclipse SUMO netedit Version 1.20.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/neteditConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="D:\Code\Sumo\hybrid-TL\net\single-stage2.net.xml"/>
+    </input>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="0"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="0"/>
+        <junctions.limit-turn-speed value="-1.00"/>
+        <rectangular-lane-cut value="0"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="0"/>
+    </pedestrian>
+
+</configuration>
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <tlLogic id="t" type="static" programID="0" offset="0">
+        <phase duration="27" state="OgrOrrOgrOrr"/>
+        <phase duration="3"  state="OyuOrrOyuOrr"/>
+        <phase duration="27" state="OrgOrrOrgOrr"/>
+        <phase duration="3"  state="OryOurOryOur"/>
+        <phase duration="27" state="OrrOGrOrrOGr"/>
+        <phase duration="3"  state="OrrOyuOrrOyu"/>
+        <phase duration="27" state="OrrOrGOrrOrG"/>
+        <phase duration="3"  state="OuuOryOrrOry"/>
+        <phase duration="27" state="OGGOrrOrrOrr"/>
+        <phase duration="3"  state="OyyOuuOrrOrr"/>
+        <phase duration="27" state="OrrOGGOrrOrr"/>
+        <phase duration="3"  state="OrrOyyOuuOrr"/>
+        <phase duration="27" state="OrrOrrOGGOrr"/>
+        <phase duration="3"  state="OrrOrrOyyOuu"/>
+        <phase duration="27" state="OrrOrrOrrOGG"/>
+        <phase duration="3"  state="OurOrrOurOyy"/>
+        <param key="barrier2Phases" value="2,6"/>
+        <param key="barrierPhases" value="4,8"/>
+        <param key="device.glosa.range" value="60"/>
+        <param key="ring1" value="0,2,0,4"/>
+        <param key="ring2" value="0,6,0,8"/>
+    </tlLogic>
+</additional>
