@@ -21,8 +21,8 @@
         <phase duration="100" state="OrrOrrOGGOrr"/>
         <phase duration="100" state="OrrOrrOrrOGG"/>
         <phase duration="100" state="OyrOrrOyrOrr"/>
-        <phase duration="100" state="OgrOrrOyrOrr"/>
-        <phase duration="100" state="OyrOrrOgrOrr"/>
+        <phase duration="100" state="OGrOrrOyrOrr"/>
+        <phase duration="100" state="OyrOrrOGrOrr"/>
         <phase duration="100" state="OryOrrOryOrr"/>
         <phase duration="100" state="OrGOrrOryOrr"/>
         <phase duration="100" state="OryOrrOrGOrr"/>

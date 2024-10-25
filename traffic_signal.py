@@ -132,9 +132,6 @@ class TrafficSignal:
 
         self.inlane_waiting_time = np.array(
             [list(self.sumo.lane.getSubscriptionResults(lane_id).values())[1] for lane_id in self.in_lanes])
-        if self.id == 'cluster_2569264934_2890680725':
-            self.inlane_arrival = np.array(
-                [list(self.sumo.lane.getSubscriptionResults(lane_id).values())[0] for lane_id in self.in_lanes[6:]])
 
     def retrieve_reward(self):
         if not isinstance(self.inlane_halting_vehicle_number_old, np.ndarray):

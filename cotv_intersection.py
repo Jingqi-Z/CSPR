@@ -191,7 +191,8 @@ class raw_env(ParallelEnv):
         #         self.agents.append(self.possible_agents[i])
         self.episode_step = 0
         self.TL = TrafficSignal(self.TL_id, 3, self.sumo)
-        self.TL.set_stage_duration(0, 12)
+        # self.TL.set_stage_duration(0, 12)
+        self.TL.clear_schedule()
         self.TL.get_subscription_result()
         self.CAV_leaders = [[] for _ in range(8)]
         self.temp['phase'] = 0
@@ -200,6 +201,7 @@ class raw_env(ParallelEnv):
         # the observations should be numpy arrays even if there is only one value
         observations = {agent: self._get_observation(agent) for agent in self.agents}
         infos = {agent: {'agents_to_update': 0} for agent in self.agents}
+        infos['traffic_light']['agents_to_update'] = 1
         return observations, infos
 
     def step(self, actions):
@@ -218,7 +220,8 @@ class raw_env(ParallelEnv):
         if not actions:
             self.agents = []
             return {}, {}, {}, {}, infos
-
+        for agent, action in actions.items():
+            self._apply_action(agent, action)
         t = self.sim_time()
         if t % 1 == 0 and t > 0:
             check = self.TL.check()
@@ -227,8 +230,6 @@ class raw_env(ParallelEnv):
                 infos['traffic_light']['agents_to_update'] = 1
                 # self.temp['phase'] += 2
                 # self.TL.set_stage_duration(int(self.temp['phase'] % 8), 27)
-        for agent, action in actions.items():
-            self._apply_action(agent, action, infos)
 
         for _ in range(int(0.5 / self.delta_time)):
             self._sumo_step()
@@ -291,7 +292,9 @@ class raw_env(ParallelEnv):
         else:
             raise ValueError("Agent id is invalid!")
 
-    def _apply_action(self, agent, action, infos):
+    def _apply_action(self, agent, action):
+        if agent not in self.agents:
+            return
         if agent.startswith('cav'):
             platoon = self.platoons[self.possible_agents.index(agent)][0]
             if not platoon:
@@ -307,7 +310,7 @@ class raw_env(ParallelEnv):
                 self.temp['phase'] += 1
                 # print(int(self.temp['phase'] % 4))
                 # self.TL.set_stage_duration(int(self.temp['phase'] % 4), 27)
-                self.TL.set_stage_duration(int(phase), duration.item())
+                self.TL.set_stage_duration(phase, int(duration.item()))
         else:
             raise ValueError("Agent id is invalid!")
 
@@ -316,7 +319,7 @@ class raw_env(ParallelEnv):
         # self.platoons = get_nearest_platoon(self.TL_id)
         self.TL.get_subscription_result()
         for i, p in enumerate(self.platoons):
-            if p:
+            if p[0]:
                 self.agents.append(self.possible_agents[i])
         for out_road in ['t_n', 't_e', 't_s', 't_w']:
             vehicles = traci.edge.getLastStepVehicleIDs(out_road)
@@ -409,7 +412,6 @@ if __name__ == "__main__":
         # this is where you would insert your policy
         actions = {agent: env.action_space(agent).sample() for agent in env.possible_agents}
         observations, rewards, terminations, truncations, infos = env.step(actions)
-        # print(actions)
         done = terminations["__all__"] or truncations["__all__"]
     env.close()
     exit(2024)
