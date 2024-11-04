@@ -225,6 +225,7 @@ class raw_env(ParallelEnv):
         t = self.sim_time()
         if t % 1 == 0 and t > 0:
             check = self.TL.check()
+            # print(self.TL.schedule)
             self.TL.pop()
             if check == -1:
                 infos['traffic_light']['agents_to_update'] = 1
@@ -261,7 +262,7 @@ class raw_env(ParallelEnv):
         for agent in self.possible_agents:
             infos[agent] = {'agents_to_update': 1 if agent in self.agents else 0}
         infos['queue'] = np.array(sum(self.TL.retrieve_queue()))
-
+        # print(infos['traffic_light']['agents_to_update'])
         return observations, rewards, terminations, truncations, infos
 
     def _compute_reward(self, agent):
@@ -303,14 +304,13 @@ class raw_env(ParallelEnv):
             acc = action.item() * 3
             speed = traci.vehicle.getSpeed(cav)
             # traci.vehicle.setSpeed(cav, max(0, speed+acc))
-            # traci.vehicle.slowDown(cav, np.clip(speed+acc, 0, 15), 1)
+            traci.vehicle.slowDown(cav, np.clip(speed+acc, 0, 15), 0.5)
         elif agent.startswith('traffic'):
             phase, duration = action
-            if infos['traffic_light']['agents_to_update']:
-                self.temp['phase'] += 1
-                # print(int(self.temp['phase'] % 4))
-                # self.TL.set_stage_duration(int(self.temp['phase'] % 4), 27)
-                self.TL.set_stage_duration(phase, int(duration.item()))
+            self.temp['phase'] += 1
+            # print(int(self.temp['phase'] % 4))
+            # self.TL.set_stage_duration(int(self.temp['phase'] % 4), 27)
+            self.TL.set_stage_duration(phase, int(duration.item()))
         else:
             raise ValueError("Agent id is invalid!")
 

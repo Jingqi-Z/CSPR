@@ -8,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from agent.hppo_noshare import PPO_Hybrid
 from agent.ppo import PPO_Continuous
+# from agent.ppo2 import PPO_continuous
 from cotv_intersection import raw_env
 from normalization import Normalization
 
@@ -42,7 +43,7 @@ class Trainer(object):
         self.min_green = args.min_green
 
         self.env = raw_env(
-            use_gui=True,
+            use_gui=False,
             sumo_config=args.sumocfg,
             sumo_seed=self.seed,
             num_seconds=3600,
@@ -66,6 +67,13 @@ class Trainer(object):
         for agent in self.env.possible_agents:
             obs_space, act_space = self.env.observation_space(agent), self.env.action_space(agent)
             if agent.startswith('cav'):
+                """agents[agent_policy_dict[agent]] = (
+                    PPO_continuous(
+                        obs_space.shape[0], act_space.shape[0], 1.0,
+                        args.batch_size, 64,
+                        args.max_train_steps, 3e-4, 3e-4, self.gamma,
+                        self.lambda_, args.epsilon, args.K_epochs, args.entropy_coef, )
+                )"""
                 agents[agent_policy_dict[agent]] = (
                     PPO_Continuous(obs_space.shape[0], act_space.shape[0], self.mid_dim,
                                    self.lr_actor, self.lr_critic, self.lr_decay_rate, self.buffer_size,
@@ -132,13 +140,16 @@ class Trainer(object):
                         if agent.startswith('cav'):
                             value, action, log_prob = value_action_logp
                             action = action * 3.0
-                            self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value, 'logp_act': log_prob}
+                            self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value,
+                                                   'logp_act': log_prob}
                         elif agent.startswith('traffic'):
                             value, (action_dis, action_con), (log_prob_dis, log_prob_con) = value_action_logp
                             action_con = (action_con + 1) / 2 * (self.max_green - self.min_green) + self.min_green
                             action = (action_dis, np.array(action_con, dtype=np.int64))
-                            self.history[agent] = {'obs': observation_norm, 'act_dis': action_dis, 'act_con': action_con,
-                                                   'val': value, 'logp_act_dis': log_prob_dis, 'logp_act_con': log_prob_con}
+                            self.history[agent] = {'obs': observation_norm, 'act_dis': action_dis,
+                                                   'act_con': action_con,
+                                                   'val': value, 'logp_act_dis': log_prob_dis,
+                                                   'logp_act_con': log_prob_con}
                         actions[agent] = action
 
                     next_states, rewards, terminations, truncations, infos = env.step(actions)
@@ -173,7 +184,8 @@ class Trainer(object):
             if episode % self.agent_update_freq == 0:
                 for agent, policy in agents.items():
                     # print(agent, policy.buffer.ptr)
-                    policy.update(self.batch_size)
+                    if not agent.startswith('traffic'):
+                        policy.update(self.batch_size)
                     policy.buffer.clear()
 
             if episode % self.agent_save_freq == 0:
@@ -205,12 +217,13 @@ if __name__ == '__main__':
     parser.add_argument('--device', default=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
                         help='Device.')
     parser.add_argument('--max_episodes', type=int, default=990, help='The max episodes per agent per run.')
+    parser.add_argument('--max_steps', type=int, default=int(2e6), help='The max steps in training.')
     parser.add_argument('--buffer_size', type=int, default=20000, help='The maximum size of the PPOBuffer.')
     parser.add_argument('--batch_size', type=int, default=256, help='The sample batch size.')
     parser.add_argument('--rolling_score_window', type=int, default=5,
                         help='Mean of last rolling_score_window.')
     parser.add_argument('--agent_save_freq', type=int, default=5, help='The frequency of the agent saving.')
-    parser.add_argument('--agent_update_freq', type=int, default=5, help='The frequency of the agent updating.')
+    parser.add_argument('--agent_update_freq', type=int, default=2, help='The frequency of the agent updating.')
     parser.add_argument('--lr_actor', type=float, default=0.0003, help='The learning rate of actor_con.')  # carefully!
     parser.add_argument('--lr_actor_param', type=float, default=0.001, help='The learning rate of critic.')
     parser.add_argument('--lr_std', type=float, default=0.004, help='The learning rate of log_std.')

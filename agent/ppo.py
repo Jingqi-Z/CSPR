@@ -244,7 +244,7 @@ class PPO_Discrete(PPO_Abstract, ABC):
     def compute_loss_v(self, data):
         obs, _, _, _, ret, _, _, _ = data
         state_values = self.agent.critic(obs)
-        print(obs.requires_grad)
+        # print(obs.requires_grad)
         return self.loss_func(state_values, ret)
 
     def update(self, batch_size):
@@ -339,7 +339,7 @@ class PPO_Continuous(PPO_Abstract, ABC):
 
         # Useful extra info
         approx_kl = (logp_old_con - logp).mean().item()
-        print(self.agent.log_std)
+        # print(self.agent.log_std)
 
         return loss_pi, approx_kl
 
@@ -390,8 +390,8 @@ class PPO_Continuous(PPO_Abstract, ABC):
         self.lr_scheduler_actor.step()
         self.lr_scheduler_critic.step()
 
-        print(self.lr_scheduler_actor.get_lr())
-        print(self.lr_scheduler_critic.get_lr())
+        # print(self.lr_scheduler_actor.get_lr())
+        # print(self.lr_scheduler_critic.get_lr())
         print('----------------------------------------------------------------------')
         print('Worker_{}, LossPi: {}, KL: {}, LossV: {}'.format(
             self.random_seed, pi_loss_epoch, kl_epoch, v_loss_epoch)
