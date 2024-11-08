@@ -8,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from agent.hppo_noshare import PPO_Hybrid
 from agent.ppo import PPO_Continuous
+from agent.ppo2 import PPO_continuous
 # from agent.ppo2 import PPO_continuous
 from cotv_intersection import raw_env
 from normalization import Normalization
@@ -20,6 +21,7 @@ class Trainer(object):
         self.seed = args.random_seed
         self.device = args.device
         self.max_episodes = args.max_episodes
+        self.max_steps = args.max_steps
         self.buffer_size = args.buffer_size
         self.batch_size = args.batch_size
         self.mid_dim = args.mid_dim
@@ -43,13 +45,14 @@ class Trainer(object):
         self.min_green = args.min_green
 
         self.env = raw_env(
-            use_gui=False,
+            use_gui=True,
             sumo_config=args.sumocfg,
             sumo_seed=self.seed,
-            num_seconds=3600,
+            num_seconds=1800,
             begin_time=30,
         )
         self.history = {}
+        self.writer = False
 
     def initialize_agents(self, random_seed, policy_mapping_fn):
         """
@@ -67,20 +70,19 @@ class Trainer(object):
         for agent in self.env.possible_agents:
             obs_space, act_space = self.env.observation_space(agent), self.env.action_space(agent)
             if agent.startswith('cav'):
-                """agents[agent_policy_dict[agent]] = (
-                    PPO_continuous(
-                        obs_space.shape[0], act_space.shape[0], 1.0,
-                        args.batch_size, 64,
-                        args.max_train_steps, 3e-4, 3e-4, self.gamma,
-                        self.lambda_, args.epsilon, args.K_epochs, args.entropy_coef, )
-                )"""
                 agents[agent_policy_dict[agent]] = (
+                    PPO_continuous(
+                        obs_space.shape[0], act_space.shape[0], act_space.high[0], self.batch_size,
+                        64, args.max_train_steps, 3e-4, 3e-4, self.gamma,
+                        self.lambda_, args.epsilon, args.K_epochs, args.entropy_coef, )
+                )
+                """agents[agent_policy_dict[agent]] = (
                     PPO_Continuous(obs_space.shape[0], act_space.shape[0], self.mid_dim,
                                    self.lr_actor, self.lr_critic, self.lr_decay_rate, self.buffer_size,
-                                   self.target_kl_con, self.gamma, self.lambda_, self.epochs_update, self.eps_clip,
+                                   5.0, self.gamma, self.lambda_, self.epochs_update, self.eps_clip,
                                    self.max_norm_grad, self.coeff_dist_entropy, random_seed, self.device, self.lr_std,
                                    self.init_log_std,
-                                   ))
+                                   ))"""
             elif agent.startswith('traffic'):
                 agents[agent_policy_dict[agent]] = (
                     PPO_Hybrid(obs_space.shape[0], act_space[0].n, self.mid_dim, self.lr_actor, self.lr_critic,
@@ -92,7 +94,10 @@ class Trainer(object):
                 raise ValueError
             state_norm[agent_policy_dict[agent]] = Normalization(shape=obs_space.shape[0])
         assert len(agents) == len(policys) == len(state_norm)
-
+        file_save = f"data_train/{current_date}/"
+        for agent in agents:
+            os.makedirs(f'{file_save}/data/{agent}', exist_ok=True)
+            os.makedirs(f'{file_save}/policy/{agent}', exist_ok=True)
         return agents, state_norm
 
     def train(self):
@@ -112,81 +117,95 @@ class Trainer(object):
         file_save = f"data_train/{current_date}/"
         agents, state_norm = self.initialize_agents(self.seed, policy_mapping_fn)
         agents['traffic_light'].load('data_train/1018/policy/i_episode990_42_0')
+        state_norm['traffic_light'].running_ms.load('data_train/1018/i_episode912_42.npz')
         env = self.env
         episode = 0
         total_steps = 0
         """  TRAINING LOGIC  """
-        while episode < args.max_episodes:
+        while total_steps < self.max_steps:
             # collect an episode
-            with torch.no_grad():
-                states, infos = env.reset()
-                episode_step = 0
-                queue_len = []
-                episode_reward = {agent: 0.0 for agent in self.env.possible_agents}
-                while True:
-                    # Every update, we will normalize the state_norm(the input of the actor_con and critic) by
-                    # mean and std retrieve from the last update's buf, in other word observations normalization
-                    actions = {}
-                    self.history = {agent: {} for agent in self.env.possible_agents}
-                    env_agents = env.possible_agents
-                    for agent in env_agents:
-                        agent_map = policy_mapping_fn(agent)
-                        observation = states[agent].reshape(-1)
-                        observation_norm = state_norm[agent_map](observation)
-                        # Select action with policy
+            # with torch.no_grad():
+            states, infos = env.reset()
+            episode_step = 0
+            queue_len = []
+            episode_reward = {agent: 0.0 for agent in self.env.possible_agents}
+            while True:
+                # Every update, we will normalize the state_norm(the input of the actor_con and critic) by
+                # mean and std retrieve from the last update's buf, in other word observations normalization
+                actions = {}
+                self.history = {agent: {} for agent in self.env.possible_agents}
+                env_agents = env.possible_agents
+                for agent in env_agents:
+                    agent_map = policy_mapping_fn(agent)
+                    observation = states[agent].reshape(-1)
+                    observation_norm = state_norm[agent_map](observation)
+                    if agent.startswith('cav'):
+                        """value_action_logp = agents[agent_map].select_action(observation_norm)
+                        value, action, log_prob = value_action_logp
+                        action = action * 3.0
+                        self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value,
+                                               'logp_act': log_prob}"""
+                        action, log_prob = agents[agent_map].select_action(observation_norm)
+                        # action = action * 3.0
+                        self.history[agent] = {'obs': observation_norm, 'act': action, 'logp_act': log_prob}
+                    elif agent.startswith('traffic'):
                         value_action_logp = agents[agent_map].select_action(observation_norm)
                         #  state_value, (action_dis, action_con), (log_prob_dis, log_prob_con)
                         #  state_value, action, log_prob
+                        value, (action_dis, action_con), (log_prob_dis, log_prob_con) = value_action_logp
+                        action_con = (action_con + 1) / 2 * (self.max_green - self.min_green) + self.min_green
+                        action = (action_dis, np.array(action_con, dtype=np.int64))
+                        self.history[agent] = {'obs': observation_norm, 'act_dis': action_dis,
+                                               'act_con': action_con,
+                                               'val': value, 'logp_act_dis': log_prob_dis,
+                                               'logp_act_con': log_prob_con}
+                    actions[agent] = action
+
+                next_states, rewards, terminations, truncations, infos = env.step(actions)
+                queue_len.append(infos['queue'])
+                episode_step += 1
+
+                for agent in env_agents:
+                    if infos[agent]['agents_to_update']:
+                        episode_reward[agent] += rewards[agent]
                         if agent.startswith('cav'):
-                            value, action, log_prob = value_action_logp
-                            action = action * 3.0
-                            self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value,
-                                                   'logp_act': log_prob}
+                            '''agents[policy_mapping_fn(agent)].buffer.store_con(
+                                self.history[agent]['obs'], self.history[agent]['act'], rewards[agent],
+                                self.history[agent]['val'], self.history[agent]['logp_act'],
+                            )'''
+                            agents[policy_mapping_fn(agent)].replay_buffer.add(
+                                self.history[agent]['obs'], self.history[agent]['act'], self.history[agent]['logp_act'],
+                                rewards[agent], self.history[agent]['val'],
+                            )
                         elif agent.startswith('traffic'):
-                            value, (action_dis, action_con), (log_prob_dis, log_prob_con) = value_action_logp
-                            action_con = (action_con + 1) / 2 * (self.max_green - self.min_green) + self.min_green
-                            action = (action_dis, np.array(action_con, dtype=np.int64))
-                            self.history[agent] = {'obs': observation_norm, 'act_dis': action_dis,
-                                                   'act_con': action_con,
-                                                   'val': value, 'logp_act_dis': log_prob_dis,
-                                                   'logp_act_con': log_prob_con}
-                        actions[agent] = action
+                            agents[policy_mapping_fn(agent)].buffer.store_hybrid(
+                                self.history[agent]['obs'], self.history[agent]['act_dis'],
+                                self.history[agent]['act_con'], rewards[agent],
+                                self.history[agent]['val'],
+                                self.history[agent]['logp_act_dis'],
+                                self.history[agent]['logp_act_con']
+                            )
+                # print(reward[0])
+                states = next_states
+                total_steps += 1
 
-                    next_states, rewards, terminations, truncations, infos = env.step(actions)
-                    queue_len.append(infos['queue'])
-                    episode_step += 1
+                for agent, policy in agents.items():
+                    if not agent.startswith('traffic'):
+                        if policy.buffer.ptr >= 1024:
+                            policy.buffer.finish_path(0)
+                            policy.update(self.batch_size)
+                            policy.buffer.clear()
 
-                    for agent in env_agents:
-                        if infos[agent]['agents_to_update']:
-                            episode_reward[agent] += rewards[agent]
-                            if agent.startswith('cav'):
-                                agents[policy_mapping_fn(agent)].buffer.store_con(
-                                    self.history[agent]['obs'], self.history[agent]['act'], rewards[agent],
-                                    self.history[agent]['val'], self.history[agent]['logp_act'],
-                                )
-                            elif agent.startswith('traffic'):
-                                agents[policy_mapping_fn(agent)].buffer.store_hybrid(
-                                    self.history[agent]['obs'], self.history[agent]['act_dis'],
-                                    self.history[agent]['act_con'], rewards[agent],
-                                    self.history[agent]['val'],
-                                    self.history[agent]['logp_act_dis'],
-                                    self.history[agent]['logp_act_con']
-                                )
-                    # print(reward[0])
-                    states = next_states
-                    total_steps += 1
-
-                    if truncations['__all__'] or terminations['__all__']:
-                        [policy.buffer.finish_path(0) for policy in agents.values()]
-                        episode += 1
-                        break
+                if truncations['__all__'] or terminations['__all__']:
+                    episode += 1
+                    break
             print(np.mean(list(env.temp['vehicle_loss'].values())))
-            if episode % self.agent_update_freq == 0:
+            """if episode % self.agent_update_freq == 0:
                 for agent, policy in agents.items():
                     # print(agent, policy.buffer.ptr)
                     if not agent.startswith('traffic'):
                         policy.update(self.batch_size)
-                    policy.buffer.clear()
+                    policy.buffer.clear()"""
 
             if episode % self.agent_save_freq == 0:
                 for agent, policy in agents.items():
@@ -200,11 +219,12 @@ class Trainer(object):
                                                     f'episode{episode}_{self.seed}.npz')
                     # os.makedirs(path_to_save_npz, exist_ok=True)
                     state_norm[agent].running_ms.save(path_to_save_npz)
-
-            writer.add_scalar('run/episode_len', scalar_value=episode_step, global_step=episode)
-            writer.add_scalar('run/queue', scalar_value=np.mean(queue_len), global_step=episode)
-            for agent in env.possible_agents:
-                writer.add_scalar(f'run/reward_{agent}', scalar_value=episode_reward[agent], global_step=episode)
+            if self.writer:
+                writer.add_scalar('run/episode_len', scalar_value=episode_step, global_step=total_steps)
+                writer.add_scalar('run/queue', scalar_value=np.mean(queue_len), global_step=total_steps)
+                for agent in env.possible_agents:
+                    writer.add_scalar(f'run/reward_{agent}', scalar_value=episode_reward[agent],
+                                      global_step=total_steps)
 
         env.close()
 

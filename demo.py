@@ -57,8 +57,9 @@ def get_nearest_platoon(tl, max_len=8, num=1):
 
 
 if __name__ == "__main__":
+    step_len = 0.5
     traci.start(["sumo-gui", "-c", "./net/single-stage2.sumocfg",
-                 "--seed", "42"
+                 "--seed", "42", '--step-length', f'{step_len}'
                  # "--lanechange-output", "./net/lanechange_out.xml",
                  ],
                 label="default", port=7911
@@ -112,7 +113,7 @@ if __name__ == "__main__":
                 p.clear()
                 p.extend(pt)
         # print(platoons)
-        """for p, pha in zip(platoons, phase_encoding[TL.retrieve_stage()]):
+        for p, pha in zip(platoons, phase_encoding[TL.retrieve_stage()]):
             pla = p[0]
             if pla:
                 v0 = traci.vehicle.getSpeed(pla[0])
@@ -131,10 +132,10 @@ if __name__ == "__main__":
                         gap = ((pos0[0]-pos[0])**2 + (pos0[1]-pos[1])**2)**0.5
                         a = k_d*(gap - n*(T*v + l + s_0)) + k_v*(v0 - v)
                         a = np.clip(a, -9, 3)
-                        traci.vehicle.setTau(cav, 0.2)
+                        traci.vehicle.setTau(cav, 0.8)
                         traci.vehicle.setSpeedMode(cav, 0x011110)
                         # traci.vehicle.setAcceleration(cav, a, 0.5)
-                        traci.vehicle.slowDown(cav, np.clip(a+v, 0, 15), 0.25)"""
+                        traci.vehicle.slowDown(cav, np.clip(a + v, 0, 15), step_len)
 
         for out_road in ['t_n', 't_e', 't_s', 't_w']:
             vehicles = traci.edge.getLastStepVehicleIDs(out_road)

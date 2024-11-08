@@ -243,7 +243,8 @@ class PPO_Discrete(PPO_Abstract, ABC):
 
     def compute_loss_v(self, data):
         obs, _, _, _, ret, _, _, _ = data
-        state_values = self.agent.critic(obs)
+        with torch.no_grad:
+            state_values = self.agent.critic(obs)
         # print(obs.requires_grad)
         return self.loss_func(state_values, ret)
 
@@ -328,7 +329,7 @@ class PPO_Continuous(PPO_Abstract, ABC):
         return state_value.squeeze().cpu().numpy(), action.cpu().numpy(), log_prob.cpu().numpy()
 
     def compute_loss_pi(self, data):
-        obs, _, act_con, adv, _, _, logp_old_con, ptr = data
+        """obs, _, act_con, adv, _, _, logp_old_con, ptr = data
 
         logp, _ = self.agent.get_logprob_entropy(obs, act_con)
         logp = logp.gather(1, ptr.view(-1, 1)).squeeze()
@@ -338,15 +339,30 @@ class PPO_Continuous(PPO_Abstract, ABC):
         loss_pi = - (torch.min(ratio * adv, clip_adv)).mean()  # TODO
 
         # Useful extra info
-        approx_kl = (logp_old_con - logp).mean().item()
+        approx_kl = (logp_old_con - logp).mean().item()"""
         # print(self.agent.log_std)
+        obs, _, act_con, adv, _, _, logp_old_con, ptr = data
+
+        logp, dist_entropy = self.agent.get_logprob_entropy(obs, act_con)
+        ratio = torch.exp(logp - logp_old_con)
+        clip_adv = torch.clamp(ratio, 1 - self.eps_clip, 1 + self.eps_clip) * adv
+        loss_pi = - (torch.min(ratio * adv, clip_adv) + self.coeff_entropy * dist_entropy).mean()
+
+        # Useful extra info
+        approx_kl = (logp_old_con - logp).mean().item()
 
         return loss_pi, approx_kl
 
-    def compute_loss_v(self, data):
+    """def compute_loss_v(self, data):
         obs, _, _, _, ret, _, _, ptr = data
         state_values = self.agent.critic(obs).gather(1, ptr.view(-1, 1)).squeeze()
 
+        return self.loss_func(state_values, ret)"""
+
+    def compute_loss_v(self, data):
+        obs, _, _, _, ret, _, _, _ = data
+        state_values = self.agent.critic(obs).squeeze()
+        # print(obs.requires_grad)
         return self.loss_func(state_values, ret)
 
     def update(self, batch_size):
@@ -369,7 +385,8 @@ class PPO_Continuous(PPO_Abstract, ABC):
                     torch.nn.utils.clip_grad_norm_(self.agent.actor.parameters(), norm_type=2, max_norm=self.max_norm)
                     self.optimizer_actor.step()
                 else:
-                    print('Early stopping at step {} due to reaching max kl. Now kl is {}'.format(num_updates, kl))
+                    pass
+                    # print('Early stopping at step {} due to reaching max kl. Now kl is {}'.format(num_updates, kl))
 
                 self.optimizer_critic.zero_grad()
                 v_loss = self.compute_loss_v(data)
@@ -392,11 +409,9 @@ class PPO_Continuous(PPO_Abstract, ABC):
 
         # print(self.lr_scheduler_actor.get_lr())
         # print(self.lr_scheduler_critic.get_lr())
-        print('----------------------------------------------------------------------')
-        print('Worker_{}, LossPi: {}, KL: {}, LossV: {}'.format(
-            self.random_seed, pi_loss_epoch, kl_epoch, v_loss_epoch)
-        )
-        print('----------------------------------------------------------------------')
+        # print('----------------------------------------------------------------------')
+        print(f'Worker_{self.random_seed}, LossPi: {pi_loss_epoch}, KL: {kl_epoch}, LossV: {v_loss_epoch}')
+        # print('----------------------------------------------------------------------')
 
         # copy new weights into old policy
         self.agent_old.load_state_dict(self.agent.state_dict())

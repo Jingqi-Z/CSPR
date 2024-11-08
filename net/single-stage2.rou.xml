@@ -17,8 +17,10 @@
            decel="2" tau="2.0"/>
     <vType id="HV_RIGHT" minGap="2.50" maxSpeed="15" color="173,255,47" carFollowModel="IDM" accel="2"
            decel="2" tau="2.0"/>
-    <vType id="CAV_PLATOON" minGap="1.50" maxSpeed="15" color="0,0,255" carFollowModel="CACC" accel="3"
-           decel="3" tau="0.4"/>
+    <vType id="CAV_LEADER" minGap="2.0" maxSpeed="15" color="0,0,255" carFollowModel="ACC" accel="3"
+           decel="3" tau="1.5" gapClosingControlGainSpeed="1" gapClosingControlGainSpace="1"
+           gapControlGainSpeed="1" gapControlGainSpace="1"
+    />
     <!-- Routes -->
     <route id="route_en" edges="e_t e_t_nc t_n t_n0"/>
     <route id="route_es" edges="e_t e_t_nc t_s t_s0"/>

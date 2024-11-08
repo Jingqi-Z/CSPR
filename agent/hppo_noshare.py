@@ -185,7 +185,7 @@ class PPO_Hybrid(object):
         ratio_con = torch.exp(logp_con - logp_old_con)
         clip_adv_dis = torch.clamp(ratio_dis, 1 - self.eps_clip, 1 + self.eps_clip) * adv
         clip_adv_con = torch.clamp(ratio_con, 1 - self.eps_clip, 1 + self.eps_clip) * adv
-        loss_pi_dis = - (torch.min(ratio_dis * adv, clip_adv_dis) + self.coeff_entropy * dist_entropy_dis).mean()  # TODO
+        loss_pi_dis = - (torch.min(ratio_dis * adv, clip_adv_dis) + self.coeff_entropy * dist_entropy_dis).mean()
         loss_pi_con = - (torch.min(ratio_con * adv, clip_adv_con)).mean()
         # Useful extra info
         approx_kl_dis = (logp_old_dis - logp_dis).mean().item()
@@ -195,7 +195,8 @@ class PPO_Hybrid(object):
 
     def compute_loss_v(self, data):
         obs, act_dis, _, _, ret, _, _, _ = data
-        state_values = self.agent.critic(obs)
+        with torch.no_grad:
+            state_values = self.agent.critic(obs)
 
         return self.loss_func(state_values, ret)
 
