@@ -138,17 +138,24 @@ class raw_env(ParallelEnv):
             cav = platoon[0]
             speed, acc = traci.vehicle.getSpeed(cav), traci.vehicle.getAcceleration(cav)
             leader, dist = traci.vehicle.getLeader(cav)
-            if not (leader and (traci.vehicle.getRoadID(cav) == traci.vehicle.getRoadID(leader))):
-                leader = None
-            gap = dist if leader else -1
-            delta_v = speed - traci.vehicle.getSpeed(leader) if leader else -1
+            gap = dist + 2 if leader else 50
+            delta_v = speed - traci.vehicle.getSpeed(leader) if leader else 15
             next_TLS = traci.vehicle.getNextTLS(cav)
             if not next_TLS:
                 distance, state = -1, 'G'
             else:
                 tlsID, _, distance, state = next_TLS[0]
-            phase = 1 if 'G' in state.upper() else 0
-            phaseTimeLeft = self.TL.retrieve_left_time()  # 1
+            left_t = self.TL.retrieve_left_time()
+            if 'G' in state.upper():
+                phase = 1
+                phaseTimeLeft = left_t
+            elif 'Y' in state.upper():
+                phase = 0
+                phaseTimeLeft = self.TL.left
+            else:  # 'r' in state.lower()
+                phase = 2
+                phaseTimeLeft = self.TL.left
+            print(cav, f'v:{speed}, a:{acc}, gap:{gap}, dis:{distance}, {phase}, {phaseTimeLeft}')
             return np.array([gap, delta_v, speed, acc, distance, phase, phaseTimeLeft])
         elif agent.startswith('traffic'):
             return np.array([self.TL.retrieve_queue()]).flatten()
@@ -201,15 +208,16 @@ class raw_env(ParallelEnv):
         # self.TL.set_stage_duration(0, 12)
         self.TL.clear_schedule()
         self.TL.get_subscription_result()
-        self.CAV_leaders = [[] for _ in range(8)]
         self.temp['phase'] = 0
         self.temp['cav_queue'] = deque(maxlen=100)
         self.temp['vehicle_loss'] = {}
         # the observations should be numpy arrays even if there is only one value
         observations = {agent: self._get_observation(agent) for agent in self.agents}
-        print(self.get_active_agents())
-        infos = {agent: {'agents_to_update': 0} for agent in self.agents}
-        infos['traffic_light']['agents_to_update'] = 1
+        # print(self.get_active_agents())
+        self.agents = self.get_active_agents()
+        infos = {agent: {'agents_to_update': 1 if agent in self.agents else 0}
+                 for agent in self.possible_agents}
+        # infos['traffic_light']['agents_to_update'] = 1
         return observations, infos
 
     def get_active_agents(self):
@@ -221,7 +229,7 @@ class raw_env(ParallelEnv):
                     agents.append('traffic_light')
             except Exception as e:
                 agents.append('traffic_light')
-                print(e)
+                # print(e)
         platoons = deepcopy(self.platoons)
         for i, p in enumerate(platoons):
             platoon = p[0]
@@ -246,33 +254,27 @@ class raw_env(ParallelEnv):
         dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
         :type actions: dict
         """
-        infos = {agent: {'agents_to_update': 0} for agent in self.possible_agents}
         # If a user passes in actions with no agents, then just return empty observations, etc.
-        if not actions:
+        '''if not actions:
             # self.agents = []
-            return {}, {}, {}, {}, infos
-        self.agents = self.get_active_agents()
+            infos = {agent: {'agents_to_update': 0} for agent in self.possible_agents}
+            infos['queue'] = sum(self.TL.retrieve_queue())
+            return {}, {}, {}, {}, infos'''
         for agent, action in actions.items():
             self._apply_action(agent, action)
-        t = self.sim_time()
-        if t % 1 == 0 and t > 0:
-            check = self.TL.check()
-            # print(self.TL.schedule)
+        if self.sim_time() % 1 == 0:
+            # check = self.TL.check()
             self.TL.pop()
-            if check == -1:
-                infos['traffic_light']['agents_to_update'] = 1
-                # self.temp['phase'] += 2
-                # self.TL.set_stage_duration(int(self.temp['phase'] % 8), 27)
-
+            # if check == -1:
+            #     infos['traffic_light']['agents_to_update'] = 1
+        # step on 0.5s
         for _ in range(int(0.5 / self.delta_time)):
             self._sumo_step()
         # rewards for all agents are placed in the rewards dictionary to be returned
         rewards = {agent: self._compute_reward(agent) for agent in self.possible_agents}
         self._update_env()
         self.episode_step += 1
-        # Current observation is just the other player's most recent action
-        # This is converted to a numpy value of type int to match the type
-        # that we declared in observation_space()
+        self.agents = self.get_active_agents()
         observations = {
             agent: self._get_observation(agent) for agent in self.possible_agents
         }
@@ -285,10 +287,9 @@ class raw_env(ParallelEnv):
         if termination:
             self.agents = []
         # typically there won't be any information in the infos, but there must still be an entry for each agent
-        for agent in self.possible_agents:
-            infos[agent] = {'agents_to_update': 1 if agent in self.agents else 0}
-        infos['queue'] = np.array(sum(self.TL.retrieve_queue()))
-        # print(infos['traffic_light']['agents_to_update'])
+        infos = {agent: {'agents_to_update': 1 if agent in self.agents else 0}
+                 for agent in self.possible_agents}
+        infos['queue'] = sum(self.TL.retrieve_queue())
         return observations, rewards, terminations, truncations, infos
 
     def _compute_reward(self, agent):
@@ -301,13 +302,14 @@ class raw_env(ParallelEnv):
                 speeds.append(traci.vehicle.getSpeed(cav)+0.01)
             cav = platoon[0]
             acc = traci.vehicle.getAcceleration(cav)
-            r_rho = -abs(acc/3)
+            r_rho = -abs(acc)
             r_v = np.mean(speeds)
             next_TLS = traci.vehicle.getNextTLS(cav)
             if not next_TLS:
                 return r_rho + r_v
             tlsID, _, distance, state = next_TLS[0]
-            phase_left = self.TL.retrieve_left_time()  # 1
+            phase_left = self.TL.retrieve_left_time() if 'G' in state.upper() else self.TL.left
+
             if 'G' in state.upper() and acc < 0 and distance/speeds[0] < phase_left:
                 r_penalty = 5*acc
             else:
@@ -337,30 +339,38 @@ class raw_env(ParallelEnv):
             if not platoon:
                 return
             cav = platoon[0]
-            a = 3  # action.item() * 3
+            a = action.item() * 3
             v = traci.vehicle.getSpeed(cav)
             # traci.vehicle.setType(cav, 'CAV_LEADER')
-            # traci.vehicle.setSpeed(cav, max(0, speed+acc))
-            T = 1.0
-            k_d, k_v, l, s_0 = 1.0, 1.0, 5.0, 2.0
             leader, gap = traci.vehicle.getLeader(cav)
-            a0 = traci.vehicle.getAcceleration(leader) if leader else 0
-            v0 = traci.vehicle.getSpeed(leader) if leader else v
-            if not leader: gap = 100
-            a = k_d * (gap - T * v - s_0) + k_v * (v0 - v)
+            # a0 = traci.vehicle.getAcceleration(leader) if leader else 0
+            v0 = traci.vehicle.getSpeed(leader) if leader else v + 3
+            if not leader:
+                gap = 100
+            elif gap < 0:
+                gap = 0
+            next_TLS = traci.vehicle.getNextTLS(cav)
+            if next_TLS:
+                tlsID, _, distance, state = next_TLS[0]
+            else:
+                distance, state = 100.0, 'g'
+            if 'Y' in state.upper():
+                stop_dis = v ** 2 / 6
+                if distance < stop_dis:
+                    pass
+                    # print(distance, stop_dis)
             a = np.clip(a, -3, 3)
-            # a = 3
-            # v_p = v + 2*3*gap/(v+v0+0.1)
-            # traci.vehicle.setSpeedMode(cav, 0x011110)
-            traci.vehicle.setColor(cav, color=(0, 0, 255))
-            vs = calculate_safe_speed(3, 0.5, 0.0, v0, 2, gap)
+            traci.vehicle.setSpeedMode(cav, 0x011110)
+            # traci.vehicle.setColor(cav, color=(0, 0, 255))
+            # print(cav)
+            vs = calculate_safe_speed(3, 1.0, 0.0, v0, 2, gap)
             # print(cav, a, vs)
-            # traci.vehicle.slowDown(cav, np.clip(min(v+a, vs), 0, 15), 0.5)
+            traci.vehicle.slowDown(cav, np.clip(min(v + a, vs), 0, 15), 0.5)
         elif agent.startswith('traffic'):
             phase, duration = action
             self.temp['phase'] += 1
-            # print(int(self.temp['phase'] % 4))
-            dur_map = {0: 17, 1: 17, 2: 27, 3: 27}
+            # fixed phase duration
+            dur_map = {0: 12, 1: 12, 2: 27, 3: 22}
             self.TL.set_stage_duration(int(self.temp['phase'] % 4), dur_map[int(self.temp['phase'] % 4)])
             # self.TL.set_stage_duration(phase, int(duration.item()))
         else:
@@ -373,11 +383,10 @@ class raw_env(ParallelEnv):
         phase_left = self.TL.retrieve_left_time()
         phase_code = phase_encoding[self.TL.retrieve_stage()]
         # 使用列表推导式选择phase_code为1的inlanes元素
-        selected_lanes = [self.TL.in_lanes[i] for i in range(8) if phase_code[i] == 1]
         platoons = [self.platoons[i] for i in range(8) if phase_code[i] == 1]
         # print(phase_left)
         if self.sim_time() % 1 == 0 and phase_left == 2:
-            max_t = 0
+            min_t = 100
             for platoon in platoons:
                 if len(platoon[0]) > 1:
                     speed = traci.vehicle.getSpeed(platoon[0][-1])
@@ -387,10 +396,10 @@ class raw_env(ParallelEnv):
                     else:
                         distance = 0.0
                     t = distance / (speed + 0.1)
-                    max_t = max(max_t, t)
-                    print(platoon[0][-1], t)
-            if 2 < max_t <= 6:
-                for i in range(1, round(max_t)):
+                    max_t = min(min_t, t)
+                    # print(platoon[0][-1], t)
+            if 2 < min_t < 7:
+                for i in range(1, round(min_t)):
                     self.TL.schedule.appendleft(0)
                     pass
         for out_road in ['t_n', 't_e', 't_s', 't_w']:
@@ -424,9 +433,8 @@ class raw_env(ParallelEnv):
                     if n == 0:
                         # traci.vehicle.setAcceleration(cav, random.random(), 0.5)
                         pass
-                        traci.vehicle.setTau(cav, 1.5)
+                        # traci.vehicle.setTau(cav, 1.5)
                         # traci.vehicle.setSpeedMode(cav, 31)
-                        pass
                     else:
                         T = 1.0
                         k_d, k_v, l, s_0 = 1/(n*T)**2, 1/(n*T), 5.0, 2.0
@@ -439,7 +447,6 @@ class raw_env(ParallelEnv):
                         traci.vehicle.setSpeedMode(cav, 0x011110)
                         # traci.vehicle.setAcceleration(cav, a, 0.5)
                         traci.vehicle.slowDown(cav, np.clip(a + v, 0, 15), self.delta_time)
-                        # print(cav, traci.vehicle.getSpeedMode(cav))
         self.sumo.simulationStep()
 
     def sim_time(self) -> float:

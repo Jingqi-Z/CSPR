@@ -161,9 +161,9 @@ class PPO_Hybrid(object):
         self.optimizer_critic = torch.optim.Adam(self.agent.critic.parameters(), lr=lr_critic)
 
         self.lr_scheduler_critic = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_critic,
-                                                                          gamma=lr_decay_rate)
+                                                                          gamma=lr_decay_rate, verbose=True)
         self.lr_scheduler_actor_con = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor_con,
-                                                                             gamma=lr_decay_rate)
+                                                                             gamma=lr_decay_rate, verbose=True)
         self.lr_scheduler_actor_dis = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor_dis,
                                                                              gamma=lr_decay_rate)
         self.loss_func = nn.SmoothL1Loss(reduction='mean')
@@ -195,8 +195,7 @@ class PPO_Hybrid(object):
 
     def compute_loss_v(self, data):
         obs, act_dis, _, _, ret, _, _, _ = data
-        with torch.no_grad:
-            state_values = self.agent.critic(obs)
+        state_values = self.agent.critic(obs)
 
         return self.loss_func(state_values, ret)
 

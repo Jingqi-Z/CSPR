@@ -47,12 +47,10 @@ class TrafficSignal:
         self.inlane_arrival = None
         self.outlane_halting_vehicle_number = None
         self.outlane_waiting_time = None
-        # self.stage_old = None
-
         self.outlane_halting_vehicle_number = None
         # self.stage_old = np.random.randint(0, 8)
         self.stage_old = self.sumo.trafficlight.getPhase(self.id)
-        self.phase_duration = 0
+        self.left = 1000
 
         self.mapping = np.array([
             [-1, 8, 8, 8, 9, 8, 10, 8],
@@ -80,9 +78,10 @@ class TrafficSignal:
             # yellow_stage = int((self.stage_old+1) % 8)
             # logging.info(f"Switching from {self.stage_old} to {stage} with yellow stage {yellow_stage}")
             self.sumo.trafficlight.setPhase(self.id, yellow_stage)
+            # self.left = 3
             for i in range(self.yellow - 1):
                 self.schedule.append(0)  # 右侧添加
-        self.phase_duration = int(duration)
+        self.duration = int(duration)
         self.stage_old = int(stage)
         self.schedule.append(duration)
 
@@ -95,6 +94,7 @@ class TrafficSignal:
         """
         if self.schedule[0] > 0:
             self.sumo.trafficlight.setPhase(self.id, self.stage_old)
+            self.left = self.duration + self.yellow + 1
             for i in range(self.schedule[0]):
                 self.schedule.append(0)
             self.schedule.popleft()
@@ -103,6 +103,7 @@ class TrafficSignal:
         return self.schedule[0]
 
     def pop(self):
+        self.left -= 1
         self.schedule.popleft()
 
     def clear_schedule(self):

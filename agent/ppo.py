@@ -243,7 +243,7 @@ class PPO_Discrete(PPO_Abstract, ABC):
 
     def compute_loss_v(self, data):
         obs, _, _, _, ret, _, _, _ = data
-        with torch.no_grad:
+        with torch.no_grad():
             state_values = self.agent.critic(obs)
         # print(obs.requires_grad)
         return self.loss_func(state_values, ret)
@@ -315,11 +315,11 @@ class PPO_Continuous(PPO_Abstract, ABC):
         self.agent_old.load_state_dict(self.agent.state_dict())
 
         self.optimizer_actor = torch.optim.Adam([
-            {'params': self.agent.actor.parameters(), 'lr': lr_actor},
-            {'params': self.agent.log_std, 'lr': lr_std},
+            {'params': self.agent.actor.parameters(), 'lr': lr_actor, 'eps': 1e-5},
+            # {'params': self.agent.log_std, 'lr': lr_std},
         ])
         self.lr_scheduler_actor = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor,
-                                                                         gamma=lr_decay_rate)
+                                                                         gamma=lr_decay_rate, verbose=True)
 
     def select_action(self, state):
         with torch.no_grad():
@@ -373,7 +373,6 @@ class PPO_Continuous(PPO_Abstract, ABC):
         num_updates = 0
 
         for i in range(self.epochs_update):
-
             sampler = self.buffer.get(batch_size)
             for data in sampler:
 
@@ -386,7 +385,7 @@ class PPO_Continuous(PPO_Abstract, ABC):
                     self.optimizer_actor.step()
                 else:
                     pass
-                    # print('Early stopping at step {} due to reaching max kl. Now kl is {}'.format(num_updates, kl))
+                    print('Early stopping at step {} due to reaching max kl. Now kl is {}'.format(num_updates, kl))
 
                 self.optimizer_critic.zero_grad()
                 v_loss = self.compute_loss_v(data)
@@ -407,8 +406,8 @@ class PPO_Continuous(PPO_Abstract, ABC):
         self.lr_scheduler_actor.step()
         self.lr_scheduler_critic.step()
 
-        # print(self.lr_scheduler_actor.get_lr())
-        # print(self.lr_scheduler_critic.get_lr())
+        print('ppo actor', self.lr_scheduler_actor.get_lr())
+        print('ppo critic', self.lr_scheduler_critic.get_lr())
         # print('----------------------------------------------------------------------')
         print(f'Worker_{self.random_seed}, LossPi: {pi_loss_epoch}, KL: {kl_epoch}, LossV: {v_loss_epoch}')
         # print('----------------------------------------------------------------------')
