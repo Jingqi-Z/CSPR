@@ -13,6 +13,8 @@
 
     <output>
         <write-license value="true"/>
+        <tripinfo-output value="tripinfo.xml"/>
+
     </output>
 
     <time>
@@ -26,6 +28,7 @@
         <default.speeddev value="0.1"/>
         <collision.action value="warn"/>
         <time-to-teleport value="-1"/>
+        <device.emissions.probability value="1.0"/>
     </processing>
     <gui_only>
         <gui-settings-file value="gui.xml"/>

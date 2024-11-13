@@ -147,16 +147,16 @@ class raw_env(ParallelEnv):
                 tlsID, _, distance, state = next_TLS[0]
             left_t = self.TL.retrieve_left_time()
             if 'G' in state.upper():
-                phase = 1
-                phaseTimeLeft = left_t
-            elif 'Y' in state.upper():
-                phase = 0
-                phaseTimeLeft = self.TL.left
-            else:  # 'r' in state.lower()
                 phase = 2
-                phaseTimeLeft = self.TL.left
-            print(cav, f'v:{speed}, a:{acc}, gap:{gap}, dis:{distance}, {phase}, {phaseTimeLeft}')
-            return np.array([gap, delta_v, speed, acc, distance, phase, phaseTimeLeft])
+                phaseTimeLeft = left_t + 2
+            elif 'Y' in state.upper():
+                phase = 1
+                phaseTimeLeft = self.TL.left - 1
+            else:  # 'r' in state.lower()
+                phase = 0
+                phaseTimeLeft = self.TL.left - 1
+            # print(cav, f'v:{speed}, a:{acc}, gap:{gap}, dis:{distance}, {state}, {phaseTimeLeft}')
+            return np.array([gap, delta_v, speed, acc, distance, phase, phaseTimeLeft], dtype=np.float32)
         elif agent.startswith('traffic'):
             return np.array([self.TL.retrieve_queue()]).flatten()
         else:
@@ -268,7 +268,7 @@ class raw_env(ParallelEnv):
             # if check == -1:
             #     infos['traffic_light']['agents_to_update'] = 1
         # step on 0.5s
-        for _ in range(int(0.5 / self.delta_time)):
+        for _ in range(int(1.0 / self.delta_time)):
             self._sumo_step()
         # rewards for all agents are placed in the rewards dictionary to be returned
         rewards = {agent: self._compute_reward(agent) for agent in self.possible_agents}
@@ -314,6 +314,8 @@ class raw_env(ParallelEnv):
                 r_penalty = 5*acc
             else:
                 r_penalty = 0.0
+            # print(cav, traci.vehicle.getFuelConsumption(cav), 'mg')
+
             return r_rho + r_v + r_penalty
 
         elif agent.startswith('traffic'):
@@ -339,10 +341,10 @@ class raw_env(ParallelEnv):
             if not platoon:
                 return
             cav = platoon[0]
-            a = action.item() * 3
+            a = 3  # action.item() * 3
             v = traci.vehicle.getSpeed(cav)
-            # traci.vehicle.setType(cav, 'CAV_LEADER')
-            leader, gap = traci.vehicle.getLeader(cav)
+            traci.vehicle.setType(cav, 'CAV_LEADER')
+            '''leader, gap = traci.vehicle.getLeader(cav)
             # a0 = traci.vehicle.getAcceleration(leader) if leader else 0
             v0 = traci.vehicle.getSpeed(leader) if leader else v + 3
             if not leader:
@@ -354,25 +356,19 @@ class raw_env(ParallelEnv):
                 tlsID, _, distance, state = next_TLS[0]
             else:
                 distance, state = 100.0, 'g'
-            if 'Y' in state.upper():
-                stop_dis = v ** 2 / 6
-                if distance < stop_dis:
-                    pass
-                    # print(distance, stop_dis)
             a = np.clip(a, -3, 3)
-            traci.vehicle.setSpeedMode(cav, 0x011110)
-            # traci.vehicle.setColor(cav, color=(0, 0, 255))
-            # print(cav)
-            vs = calculate_safe_speed(3, 1.0, 0.0, v0, 2, gap)
-            # print(cav, a, vs)
-            traci.vehicle.slowDown(cav, np.clip(min(v + a, vs), 0, 15), 0.5)
+            traci.vehicle.setSpeedMode(cav, 0x011111)
+            traci.vehicle.setColor(cav, color=(0, 0, 255))
+            vs = calculate_safe_speed(3, 1.5, 0.0, v0, 2, gap)
+            print(cav, distance, vs)'''
+            traci.vehicle.slowDown(cav, np.clip(v + a, 0, 15), 1.0)
         elif agent.startswith('traffic'):
             phase, duration = action
             self.temp['phase'] += 1
             # fixed phase duration
             dur_map = {0: 12, 1: 12, 2: 27, 3: 22}
-            self.TL.set_stage_duration(int(self.temp['phase'] % 4), dur_map[int(self.temp['phase'] % 4)])
-            # self.TL.set_stage_duration(phase, int(duration.item()))
+            # self.TL.set_stage_duration(int(self.temp['phase'] % 4), dur_map[int(self.temp['phase'] % 4)])
+            self.TL.set_stage_duration(phase, int(duration.item()))
         else:
             raise ValueError("Agent id is invalid!")
 
@@ -412,6 +408,7 @@ class raw_env(ParallelEnv):
         # for lane_id in Fo_zone_w_lane:
         #     self.sumo.lane.subscribe(lane_id, [tc.LAST_STEP_MEAN_SPEED,
         #                                        tc.VAR_WAITING_TIME])
+        self.TL.left -= self.delta_time
         platoons_temp = get_nearest_platoon(self.TL_id, num=2)
         for p, pt, pha in zip(self.platoons, platoons_temp, phase_encoding[self.TL.retrieve_stage()]):
             if not p[0]:
@@ -434,7 +431,7 @@ class raw_env(ParallelEnv):
                         # traci.vehicle.setAcceleration(cav, random.random(), 0.5)
                         pass
                         # traci.vehicle.setTau(cav, 1.5)
-                        # traci.vehicle.setSpeedMode(cav, 31)
+                        traci.vehicle.setSpeedMode(cav, 31)
                     else:
                         T = 1.0
                         k_d, k_v, l, s_0 = 1/(n*T)**2, 1/(n*T), 5.0, 2.0
@@ -475,6 +472,7 @@ if __name__ == "__main__":
         sumo_seed=42,
         num_seconds=900,
         begin_time=30,
+        # additional_sumo_cmd='--tripinfo-output tripinfo.xml',
     )
     observations, infos = env.reset()
     done = False

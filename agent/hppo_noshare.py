@@ -161,9 +161,9 @@ class PPO_Hybrid(object):
         self.optimizer_critic = torch.optim.Adam(self.agent.critic.parameters(), lr=lr_critic)
 
         self.lr_scheduler_critic = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_critic,
-                                                                          gamma=lr_decay_rate, verbose=True)
+                                                                          gamma=lr_decay_rate)
         self.lr_scheduler_actor_con = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor_con,
-                                                                             gamma=lr_decay_rate, verbose=True)
+                                                                             gamma=lr_decay_rate)
         self.lr_scheduler_actor_dis = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor_dis,
                                                                              gamma=lr_decay_rate)
         self.loss_func = nn.SmoothL1Loss(reduction='mean')

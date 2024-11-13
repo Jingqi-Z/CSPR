@@ -103,7 +103,6 @@ class TrafficSignal:
         return self.schedule[0]
 
     def pop(self):
-        self.left -= 1
         self.schedule.popleft()
 
     def clear_schedule(self):

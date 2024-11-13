@@ -80,7 +80,7 @@ class Trainer(object):
                     PPO_Continuous(obs_space.shape[0], act_space.shape[0], self.mid_dim,
                                    3e-4, 5e-4, self.lr_decay_rate, self.buffer_size,
                                    0.2, self.gamma, self.lambda_, self.epochs_update, 0.2,
-                                   5, self.coeff_dist_entropy, random_seed, self.device, self.lr_std,
+                                   2, self.coeff_dist_entropy, random_seed, self.device, self.lr_std,
                                    self.init_log_std,
                                    ))
             elif agent.startswith('traffic'):
@@ -188,15 +188,15 @@ class Trainer(object):
                     episode += 1
                     [policy.buffer.finish_path(0) for policy in agents.values()]
                     break
-
-            for agent, policy in agents.items():
-                if policy.buffer.ptr > self.batch_size:
-                    if not agent.startswith('traffic'):
-                        policy.update(self.batch_size)
-                        policy.buffer.clear()
-                    elif episode % 10 == 0:
-                        policy.update(128)
-                        policy.buffer.clear()
+            if episode % 2 == 0:
+                for agent, policy in agents.items():
+                    if policy.buffer.ptr > self.batch_size:
+                        if not agent.startswith('traffic'):
+                            policy.update(self.batch_size)
+                            policy.buffer.clear()
+                        elif episode % 10 == 0:
+                            policy.update(128)
+                            policy.buffer.clear()
 
             print('***', np.mean(list(env.temp['vehicle_loss'].values())))
 
@@ -225,16 +225,17 @@ class Trainer(object):
         def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
             return agent_id
 
-        file_save = f"data_train/{current_date}/"
+        current_date = 1110
+        file_save = f"data_train/{current_date}"
         agents, state_norm = self.initialize_agents(self.seed, policy_mapping_fn)
         agents['traffic_light'].load('data_train/1018/policy/i_episode990_42_0')
         state_norm['traffic_light'].running_ms.load('data_train/1018/i_episode912_42.npz')
-        for agent in agents:
+        '''for agent in agents:
             if not agent.startswith('traffic'):
-                policy_path = f"{file_save}/policy/{agent}/i_episode490_42_0"
-                norm_path = f"{file_save}/data/{agent}/i_episode490_42.npz"
+                policy_path = f"{file_save}/policy/{agent}/episode140_42"
+                norm_path = f"{file_save}/data/{agent}/episode140_42.npz"
                 agents[agent].load(policy_path)
-                state_norm[agent].running_ms.load(norm_path)
+                state_norm[agent].running_ms.load(norm_path)'''
 
         env = raw_env(
             use_gui=True,
@@ -292,7 +293,7 @@ class Trainer(object):
             if truncations['__all__'] or terminations['__all__']:
                 episode += 1
                 break
-            print('***', np.mean(list(env.temp['vehicle_loss'].values())))
+        print('***', np.mean(list(env.temp['vehicle_loss'].values())))
         env.close()
 
 

@@ -319,7 +319,7 @@ class PPO_Continuous(PPO_Abstract, ABC):
             # {'params': self.agent.log_std, 'lr': lr_std},
         ])
         self.lr_scheduler_actor = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor,
-                                                                         gamma=lr_decay_rate, verbose=True)
+                                                                         gamma=lr_decay_rate)
 
     def select_action(self, state):
         with torch.no_grad():
