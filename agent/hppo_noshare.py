@@ -73,7 +73,13 @@ class ActorCritic_Hybrid(nn.Module):
         return torch.tensor(phase_encoding[discrete_action_index.item()], dtype=torch.float32,
                             device=discrete_action_index.device)
 
-    def act(self, state):
+    def act(self, state, test=False):
+        if test:
+            action_probs = self.actor_dis(state)
+            action_dis = torch.argmax(action_probs)
+            mean = self.actor_con(torch.cat((self.encode_phase(action_dis), state), dim=-1))
+            return action_dis, mean[action_dis]
+
         state_value = self.critic.forward(state)
 
         action_probs = self.actor_dis(state)
@@ -167,6 +173,12 @@ class PPO_Hybrid(object):
         self.lr_scheduler_actor_dis = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optimizer_actor_dis,
                                                                              gamma=lr_decay_rate)
         self.loss_func = nn.SmoothL1Loss(reduction='mean')
+
+    def evaluate(self, state):  # When evaluating the policy, we only use the mean
+        with torch.no_grad():
+            state = torch.FloatTensor(state).to(self.device)
+            act_dis, act_con = self.agent_old.act(state, test=True)
+        return act_dis.cpu().numpy(), act_con.cpu().numpy()
 
     def select_action(self, state):
         with torch.no_grad():

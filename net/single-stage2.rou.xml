@@ -5,13 +5,13 @@
 <routes>
     <!-- VTypes -->
 
-    <vType id="CAV_STRAIGHT" minGap="2.0" maxSpeed="15" color="yellow" carFollowModel="IDM" tau="1.5"
+    <vType id="CAV_STRAIGHT" minGap="2.5" maxSpeed="15" color="yellow" carFollowModel="IDM" tau="2.0"
            accel="3.0" decel="3.0"/>
-    <vType id="CAV_LEFT" minGap="2.0" maxSpeed="15" color="red" carFollowModel="IDM" tau="1.5"
+    <vType id="CAV_LEFT" minGap="2.5" maxSpeed="15" color="red" carFollowModel="IDM" tau="2.0"
            accel="3.0" decel="3.0"/>
-    <vType id="CAV_RIGHT" minGap="2.0" maxSpeed="15" color="green" carFollowModel="IDM" tau="1.5"
+    <vType id="CAV_RIGHT" minGap="2.5" maxSpeed="15" color="green" carFollowModel="IDM" tau="2.0"
            accel="3.0" decel="3.0"/>
-    <vType id="HV_STRAIGHT" minGap="2.50" maxSpeed="15" color="255,250,205" carFollowModel="IDM"
+    <vType id="HV_STRAIGHT" minGap="2.5" maxSpeed="15" color="255,250,205" carFollowModel="IDM"
            accel="2" decel="2" tau="2.0"/>
     <vType id="HV_LEFT" minGap="2.50" maxSpeed="15" color="240,128,128" carFollowModel="IDM" accel="2"
            decel="2" tau="2.0"/>

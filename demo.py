@@ -57,9 +57,11 @@ def get_nearest_platoon(tl, max_len=8, num=1):
 
 
 if __name__ == "__main__":
-    step_len = 0.5
+    # step_len = 0.5
     traci.start(["sumo-gui", "-c", "./net/single-stage2.sumocfg",
-                 "--seed", "42", '--step-length', f'{step_len}'
+                 "--seed", '42',
+                 '--tripinfo-output', 'data/tripinfo.xml', '--device.emissions.probability', '1.0',
+                 '--emissions.volumetric-fuel', 'true',
                  # "--lanechange-output", "./net/lanechange_out.xml",
                  ],
                 label="default", port=7911
@@ -87,21 +89,20 @@ if __name__ == "__main__":
         6: [0, 0, 0, 0, 1, 1, 0, 0],
         7: [0, 0, 0, 0, 0, 0, 1, 1],
     }
-    while t < 1800:
+    while t < 900:
         t = traci.simulation.getTime()
         traci.simulationStep()
         platoons_temp = get_nearest_platoon(TL_id, num=num_p)
         # print(platoons_temp)
         # print(TL.retrieve_stage())
-        if t % 1 == 0:
+        '''if t % 1 == 0:
             # print(get_nearest_platoon(TL_id))
             check = TL.check()
             TL.pop()
             if check == -1:
                 phase = (phase + 1) % 4
                 duration_map = {0: 17, 1: 17, 2: 27, 3: 27}
-                TL.set_stage_duration(int(phase % 4), duration_map[phase])
-
+                # TL.set_stage_duration(int(phase % 4), duration_map[phase])
         for p, pt, pha in zip(platoons, platoons_temp, phase_encoding[TL.retrieve_stage()]):
             if not p[0]:
                 p.clear()
@@ -118,6 +119,10 @@ if __name__ == "__main__":
             if pla:
                 v0 = traci.vehicle.getSpeed(pla[0])
                 pos0 = traci.vehicle.getPosition(pla[0])
+                next_TLS = traci.vehicle.getNextTLS(pla[0])
+                if next_TLS:
+                    tlsID, _, distance, state = next_TLS[0]
+                    print(pla[0], distance, state)
                 for n, cav in enumerate(pla):
                     if n == 0:
                         # traci.vehicle.setAcceleration(cav, random.random(), 0.5)
@@ -135,7 +140,7 @@ if __name__ == "__main__":
                         traci.vehicle.setTau(cav, 0.8)
                         traci.vehicle.setSpeedMode(cav, 0x011110)
                         # traci.vehicle.setAcceleration(cav, a, 0.5)
-                        traci.vehicle.slowDown(cav, np.clip(a + v, 0, 15), step_len)
+                        traci.vehicle.slowDown(cav, np.clip(a + v, 0, 15), step_len)'''
 
         for out_road in ['t_n', 't_e', 't_s', 't_w']:
             vehicles = traci.edge.getLastStepVehicleIDs(out_road)

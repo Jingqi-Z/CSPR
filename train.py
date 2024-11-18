@@ -8,11 +8,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from agent.hppo_noshare import PPO_Hybrid
 from agent.ppo import PPO_Continuous
-# from agent.ppo2 import PPO_continuous
+from agent.ppo2 import PPO_continuous
 from cotp_intersection import raw_env
 from normalization import Normalization
-
-writer = SummaryWriter()
 
 
 class Trainer(object):
@@ -69,20 +67,20 @@ class Trainer(object):
         for agent in self.env.possible_agents:
             obs_space, act_space = self.env.observation_space(agent), self.env.action_space(agent)
             if agent.startswith('cav'):
-                """agents[agent_policy_dict[agent]] = (
+                agents[agent_policy_dict[agent]] = (
                     PPO_continuous(
                         obs_space.shape[0], act_space.shape[0], 1.0,
-                        args.batch_size, 64,
-                        args.max_train_steps, 3e-4, 3e-4, self.gamma,
-                        self.lambda_, args.epsilon, args.K_epochs, args.entropy_coef, )
-                )"""
-                agents[agent_policy_dict[agent]] = (
+                        self.buffer_size, 128,
+                        args.max_steps, 3e-4, 3e-4, self.gamma,
+                        self.lambda_, self.eps_clip, self.epochs_update, self.coeff_dist_entropy, )
+                )
+                '''agents[agent_policy_dict[agent]] = (
                     PPO_Continuous(obs_space.shape[0], act_space.shape[0], self.mid_dim,
                                    3e-4, 5e-4, self.lr_decay_rate, self.buffer_size,
                                    0.2, self.gamma, self.lambda_, self.epochs_update, 0.2,
-                                   2, self.coeff_dist_entropy, random_seed, self.device, self.lr_std,
+                                   5, self.coeff_dist_entropy, random_seed, self.device, self.lr_std,
                                    self.init_log_std,
-                                   ))
+                                   ))'''
             elif agent.startswith('traffic'):
                 agents[agent_policy_dict[agent]] = (
                     PPO_Hybrid(obs_space.shape[0], act_space[0].n, self.mid_dim, self.lr_actor, self.lr_critic,
@@ -101,6 +99,7 @@ class Trainer(object):
         return agents, state_norm
 
     def train(self):
+        writer = SummaryWriter()
 
         def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
             """if agent_id.startswith('traffic'):
@@ -116,8 +115,8 @@ class Trainer(object):
 
         file_save = f"data_train/{current_date}/"
         agents, state_norm = self.initialize_agents(self.seed, policy_mapping_fn)
-        agents['traffic_light'].load('data_train/1018/policy/i_episode990_42_0')
-        state_norm['traffic_light'].running_ms.load('data_train/1018/i_episode912_42.npz')
+        agents['traffic_light'].load('data_train/1112/policy/traffic_light/episode800_42')
+        state_norm['traffic_light'].running_ms.load('data_train/1112/data/traffic_light/episode800_42.npz')
         env = self.env
         episode = 0
         total_steps = 0
@@ -125,32 +124,42 @@ class Trainer(object):
         while total_steps < self.max_steps:
             # collect an episode
             # with torch.no_grad():
+            env_agents = env.possible_agents
             states, infos = env.reset()
+            states_norm = {}
+            for agent in env_agents:
+                agent_map = policy_mapping_fn(agent)
+                states_norm[agent_map] = state_norm[agent_map](states[agent].reshape(-1),
+                                                               update=bool(infos[agent]['agents_to_update']))
             episode_step = 0
             queue_len = []
             episode_reward = {agent: 0.0 for agent in self.env.possible_agents}
-            while True:
+            done = False
+            while not done:
                 # Every update, we will normalize the state_norm(the input of the actor_con and critic) by
                 # mean and std retrieve from the last update's buf, in other word observations normalization
                 actions = {}
                 self.history = {agent: {} for agent in self.env.possible_agents}
-                env_agents = env.possible_agents
                 for agent in env_agents:
                     if infos[agent]['agents_to_update']:
                         agent_map = policy_mapping_fn(agent)
-                        observation = states[agent].reshape(-1)
-                        observation_norm = state_norm[agent_map](observation,
-                                                                 update=bool(infos[agent]['agents_to_update']))
-                        # Select action with policy
-                        value_action_logp = agents[agent_map].select_action(observation_norm)
-                        #  state_value, (action_dis, action_con), (log_prob_dis, log_prob_con)
-                        #  state_value, action, log_prob
-                        if agent.startswith('cav'):
+                        # observation = states[agent].reshape(-1)
+                        # observation_norm = state_norm[agent_map](observation,
+                        #                                          update=bool(infos[agent]['agents_to_update']))
+                        observation_norm = states_norm[agent]
+                        '''if agent.startswith('cav'):
                             value, action, log_prob = value_action_logp
                             action_pad = action * 3.0
                             self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value,
-                                                   'logp_act': log_prob}
+                                                   'logp_act': log_prob}'''
+                        if agent.startswith('cav'):
+                            action, a_logprob = agents[agent_map].choose_action(observation_norm)
+                            action_pad = action * 3.0
+                            self.history[agent] = {'obs': observation_norm, 'act': action,
+                                                   'logp_act': a_logprob}
                         elif agent.startswith('traffic'):
+                            value_action_logp = agents[agent_map].select_action(observation_norm)
+                            #  state_value, (action_dis, action_con), (log_prob_dis, log_prob_con)
                             value, (action_dis, action_con), (log_prob_dis, log_prob_con) = value_action_logp
                             action_con_pad = (action_con + 1) / 2 * (self.max_green - self.min_green) + self.min_green
                             action_pad = (action_dis, np.array(action_con_pad, dtype=np.int64))
@@ -159,18 +168,34 @@ class Trainer(object):
                                                    'val': value, 'logp_act_dis': log_prob_dis,
                                                    'logp_act_con': log_prob_con}
                         actions[agent] = action_pad
-
                 next_states, rewards, terminations, truncations, next_infos = env.step(actions)
+                done = terminations['__all__'] or truncations['__all__']
+                # print(next_states)
+                states_norm_ = {}
+                for agent in env_agents:
+                    agent_map = policy_mapping_fn(agent)
+                    states_norm_[agent_map] = state_norm[agent_map](next_states[agent].reshape(-1),
+                                                                    update=bool(infos[agent]['agents_to_update']))
+                states_norm = states_norm_
                 queue_len.append(next_infos['queue'])
                 episode_step += 1
 
+                # if done:
+                #     episode += 1
+                # [policy.buffer.finish_path(0) for policy in agents.values()]
+                # break
                 for agent in env_agents:
                     if infos[agent]['agents_to_update']:
                         episode_reward[agent] += rewards[agent]
-                        if agent.startswith('cav'):
+                        '''if agent.startswith('cav'):
                             agents[policy_mapping_fn(agent)].buffer.store_con(
                                 self.history[agent]['obs'], self.history[agent]['act'], rewards[agent],
                                 self.history[agent]['val'], self.history[agent]['logp_act'],
+                            )'''
+                        if agent.startswith('cav'):
+                            agents[policy_mapping_fn(agent)].replay_buffer.add(
+                                self.history[agent]['obs'], self.history[agent]['act'], self.history[agent]['logp_act'],
+                                rewards[agent], states_norm_[agent], done, 0
                             )
                         elif agent.startswith('traffic'):
                             agents[policy_mapping_fn(agent)].buffer.store_hybrid(
@@ -181,22 +206,24 @@ class Trainer(object):
                                 self.history[agent]['logp_act_con']
                             )
                 # print(reward[0])
-                states = next_states
                 infos = next_infos
                 total_steps += 1
-                if truncations['__all__'] or terminations['__all__']:
-                    episode += 1
-                    [policy.buffer.finish_path(0) for policy in agents.values()]
-                    break
-            if episode % 2 == 0:
-                for agent, policy in agents.items():
-                    if policy.buffer.ptr > self.batch_size:
-                        if not agent.startswith('traffic'):
-                            policy.update(self.batch_size)
-                            policy.buffer.clear()
-                        elif episode % 10 == 0:
-                            policy.update(128)
-                            policy.buffer.clear()
+                # if truncations['__all__'] or terminations['__all__']:
+                #     episode += 1
+                # [policy.buffer.finish_path(0) for policy in agents.values()]
+                # break
+            episode += 1
+            self.evaluate()
+            for agent, policy in agents.items():
+                if not agent.startswith('traffic'):
+                    policy.update(total_steps)
+                    policy.replay_buffer.clear()
+                else:
+                    if total_steps < 1e5:
+                        policy.buffer.clear()
+                    elif episode % 10 == 0 and policy.buffer.ptr > self.batch_size:
+                        policy.update(128)
+                        policy.buffer.clear()
 
             print('***', np.mean(list(env.temp['vehicle_loss'].values())))
 
@@ -225,17 +252,16 @@ class Trainer(object):
         def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
             return agent_id
 
-        current_date = 1110
-        file_save = f"data_train/{current_date}"
+        file_save = f"data_train/1115/"
         agents, state_norm = self.initialize_agents(self.seed, policy_mapping_fn)
-        agents['traffic_light'].load('data_train/1018/policy/i_episode990_42_0')
-        state_norm['traffic_light'].running_ms.load('data_train/1018/i_episode912_42.npz')
-        '''for agent in agents:
-            if not agent.startswith('traffic'):
-                policy_path = f"{file_save}/policy/{agent}/episode140_42"
-                norm_path = f"{file_save}/data/{agent}/episode140_42.npz"
+        # agents['traffic_light'].load('data_train/1018/policy/i_episode990_42_0')
+        # state_norm['traffic_light'].running_ms.load('data_train/1018/i_episode912_42.npz')
+        for agent in agents:
+            # if not agent.startswith('traffic'):
+            policy_path = f"{file_save}/policy/{agent}/episode800_42"
+            norm_path = f"{file_save}/data/{agent}/episode800_42.npz"
                 agents[agent].load(policy_path)
-                state_norm[agent].running_ms.load(norm_path)'''
+            state_norm[agent].running_ms.load(norm_path)
 
         env = raw_env(
             use_gui=True,
@@ -243,57 +269,53 @@ class Trainer(object):
             sumo_seed=self.seed,
             num_seconds=900,
             begin_time=30,
+            additional_sumo_cmd='--tripinfo-output data/tripinfo.xml --device.emissions.probability 1.0 ' +
+                                '--emissions.volumetric-fuel true',
         )
-        episode = 0
-        total_steps = 0
-        """  TRAINING LOGIC  """
-        # collect an episode
-        # with torch.no_grad():
+
+        env_agents = env.possible_agents
         states, infos = env.reset()
+        states_norm = {}
+        for agent in env_agents:
+            agent_map = policy_mapping_fn(agent)
+            states_norm[agent_map] = state_norm[agent_map](states[agent].reshape(-1),
+                                                           update=bool(infos[agent]['agents_to_update']))
         episode_step = 0
         queue_len = []
         episode_reward = {agent: 0.0 for agent in self.env.possible_agents}
-        while True:
-            # Every update, we will normalize the state_norm(the input of the actor_con and critic) by
-            # mean and std retrieve from the last update's buf, in other word observations normalization
+        done = False
+        while not done:
             actions = {}
-            env_agents = env.possible_agents
+            self.history = {agent: {} for agent in self.env.possible_agents}
             for agent in env_agents:
                 if infos[agent]['agents_to_update']:
                     agent_map = policy_mapping_fn(agent)
-                    observation = states[agent].reshape(-1)
-                    observation_norm = state_norm[agent_map](observation,
-                                                             update=bool(infos[agent]['agents_to_update']))
-                    # Select action with policy
-                    value_action_logp = agents[agent_map].select_action(observation_norm)
-                    #  state_value, (action_dis, action_con), (log_prob_dis, log_prob_con)
-                    #  state_value, action, log_prob
+                    observation_norm = states_norm[agent]
                     if agent.startswith('cav'):
-                        value, action, log_prob = value_action_logp
+                        action = agents[agent_map].evaluate(observation_norm)
                         action_pad = action * 3.0
-                        self.history[agent] = {'obs': observation_norm, 'act': action, 'val': value,
-                                               'logp_act': log_prob}
+
                     elif agent.startswith('traffic'):
-                        value, (action_dis, action_con), (log_prob_dis, log_prob_con) = value_action_logp
+                        action_dis, action_con = agents[agent_map].evaluate(observation_norm)
                         action_con_pad = (action_con + 1) / 2 * (self.max_green - self.min_green) + self.min_green
                         action_pad = (action_dis, np.array(action_con_pad, dtype=np.int64))
-                        self.history[agent] = {'obs': observation_norm, 'act_dis': action_dis,
-                                               'act_con': action_con,
-                                               'val': value, 'logp_act_dis': log_prob_dis,
-                                               'logp_act_con': log_prob_con}
-                    actions[agent] = action_pad
 
+                    actions[agent] = action_pad
             next_states, rewards, terminations, truncations, next_infos = env.step(actions)
+            done = terminations['__all__'] or truncations['__all__']
+            # print(next_states)
+            states_norm_ = {}
+            for agent in env_agents:
+                agent_map = policy_mapping_fn(agent)
+                states_norm_[agent_map] = state_norm[agent_map](next_states[agent].reshape(-1),
+                                                                update=bool(infos[agent]['agents_to_update']))
+            states_norm = states_norm_
             queue_len.append(next_infos['queue'])
+            infos = next_infos
             episode_step += 1
             # print(reward[0])
-            states = next_states
-            infos = next_infos
-            total_steps += 1
-            if truncations['__all__'] or terminations['__all__']:
-                episode += 1
-                break
         print('***', np.mean(list(env.temp['vehicle_loss'].values())))
+
         env.close()
 
 
@@ -302,8 +324,8 @@ if __name__ == '__main__':
     parser.add_argument('--device', default=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
                         help='Device.')
     parser.add_argument('--max_episodes', type=int, default=990, help='The max episodes per agent per run.')
-    parser.add_argument('--max_steps', type=int, default=int(5e6), help='The max steps in training.')
-    parser.add_argument('--buffer_size', type=int, default=20000, help='The maximum size of the PPOBuffer.')
+    parser.add_argument('--max_steps', type=int, default=int(1e6), help='The max steps in training.')
+    parser.add_argument('--buffer_size', type=int, default=4000, help='The maximum size of the PPOBuffer.')
     parser.add_argument('--batch_size', type=int, default=256, help='The sample batch size.')
     parser.add_argument('--rolling_score_window', type=int, default=5,
                         help='Mean of last rolling_score_window.')

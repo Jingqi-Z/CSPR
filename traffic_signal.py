@@ -50,7 +50,7 @@ class TrafficSignal:
         self.outlane_halting_vehicle_number = None
         # self.stage_old = np.random.randint(0, 8)
         self.stage_old = self.sumo.trafficlight.getPhase(self.id)
-        self.left = 1000
+        self.left = 3
 
         self.mapping = np.array([
             [-1, 8, 8, 8, 9, 8, 10, 8],
@@ -99,7 +99,6 @@ class TrafficSignal:
                 self.schedule.append(0)
             self.schedule.popleft()
             self.schedule.append(-1)
-
         return self.schedule[0]
 
     def pop(self):
