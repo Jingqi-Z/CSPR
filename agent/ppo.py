@@ -406,8 +406,8 @@ class PPO_Continuous(PPO_Abstract, ABC):
         self.lr_scheduler_actor.step()
         self.lr_scheduler_critic.step()
 
-        print('ppo actor', self.lr_scheduler_actor.get_lr())
-        print('ppo critic', self.lr_scheduler_critic.get_lr())
+        print(self.lr_scheduler_actor.get_lr())
+        print(self.lr_scheduler_critic.get_lr())
         # print('----------------------------------------------------------------------')
         print(f'Worker_{self.random_seed}, LossPi: {pi_loss_epoch}, KL: {kl_epoch}, LossV: {v_loss_epoch}')
         # print('----------------------------------------------------------------------')

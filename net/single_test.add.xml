@@ -66,4 +66,14 @@
         <phase duration="27" state="OrrOrGOrrOrG" minDur="10" maxDur="50" name="w-n"/>
         <phase duration="3"  state="OrrOryOrrOry"/>
     </tlLogic>
+    <tlLogic id="t" type="static" programID="web" offset="0">
+        <phase duration="27" state="GGrGrrGGrGrr"/>
+        <phase duration="3" state="yyryrryyryrr"/>
+        <phase duration="13" state="rrGrrrrrGrrr"/>
+        <phase duration="3" state="rryrrrrryrrr"/>
+        <phase duration="40" state="GrrGGrGrrGGr"/>
+        <phase duration="3" state="yrryyryrryyr"/>
+        <phase duration="20" state="rrrrrGrrrrrG"/>
+        <phase duration="3" state="rrrrryrrrrry"/>
+    </tlLogic>
 </additional>

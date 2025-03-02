@@ -1,6 +1,7 @@
 import logging
 from collections import deque
 import numpy as np
+import traci
 import traci.constants as tc
 
 
@@ -43,14 +44,18 @@ class TrafficSignal:
         self.subscribe()
         self.inlane_halting_vehicle_number = None
         self.inlane_halting_vehicle_number_old = None
+        self.inlane_vehicle_number = None
+        self.inlane_vehicles = None
+        self.outlane_vehicle_number = None
         self.inlane_waiting_time = None
         self.inlane_arrival = None
         self.outlane_halting_vehicle_number = None
         self.outlane_waiting_time = None
+        self.outlane_vehicles = None
         self.outlane_halting_vehicle_number = None
         # self.stage_old = np.random.randint(0, 8)
         self.stage_old = self.sumo.trafficlight.getPhase(self.id)
-        self.left = 3
+        self.left = 1000
 
         self.mapping = np.array([
             [-1, 8, 8, 8, 9, 8, 10, 8],
@@ -99,6 +104,7 @@ class TrafficSignal:
                 self.schedule.append(0)
             self.schedule.popleft()
             self.schedule.append(-1)
+
         return self.schedule[0]
 
     def pop(self):
@@ -113,13 +119,16 @@ class TrafficSignal:
         See https://sumo.dlr.de/docs/TraCI.html "Performance" for more detailed explanation.
         :return:
         """
-
         for lane_id in self.in_lanes:
             self.sumo.lane.subscribe(lane_id, [tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
-                                               tc.VAR_WAITING_TIME])
+                                               tc.VAR_WAITING_TIME,
+                                               tc.LAST_STEP_VEHICLE_NUMBER,
+                                               tc.LAST_STEP_VEHICLE_ID_LIST], )
         for lane_id in self.out_lanes:
             self.sumo.lane.subscribe(lane_id, [tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
-                                               tc.VAR_WAITING_TIME])
+                                               tc.VAR_WAITING_TIME,
+                                               tc.LAST_STEP_VEHICLE_NUMBER,
+                                               tc.LAST_STEP_VEHICLE_ID_LIST])
 
     def get_subscription_result(self):
 
@@ -132,29 +141,64 @@ class TrafficSignal:
         self.inlane_waiting_time = np.array(
             [list(self.sumo.lane.getSubscriptionResults(lane_id).values())[1] for lane_id in self.in_lanes])
 
+        self.inlane_vehicle_number = np.array(
+            [list(self.sumo.lane.getSubscriptionResults(lane_id).values())[2] for lane_id in self.in_lanes])
+        self.outlane_vehicle_number = np.array(
+            [list(self.sumo.lane.getSubscriptionResults(lane_id).values())[2] for lane_id in self.out_lanes])
+        self.inlane_vehicles = [list(list(self.sumo.lane.getSubscriptionResults(lane_id).values())[3]) for lane_id in
+                                self.in_lanes]
+        self.outlane_vehicles = [list(list(self.sumo.lane.getSubscriptionResults(lane_id).values())[3]) for lane_id in
+                                 self.out_lanes]
+        # print(self.inlane_vehicle_number, self.outlane_vehicle_number)
+
     def retrieve_reward(self):
         if not isinstance(self.inlane_halting_vehicle_number_old, np.ndarray):
             reward = -sum(self.inlane_halting_vehicle_number)
         else:
             reward = sum(self.inlane_halting_vehicle_number_old) - sum(self.inlane_halting_vehicle_number)
-
+            # print(f"old: {self.inlane_halting_vehicle_number_old}, now: {self.inlane_halting_vehicle_number}")
         self.inlane_halting_vehicle_number_old = self.inlane_halting_vehicle_number
 
         return reward
 
     def retrieve_pressure(self):
         pressure = self.inlane_halting_vehicle_number - self.outlane_halting_vehicle_number
+        pressure = self.outlane_vehicle_number - self.inlane_vehicle_number
         return pressure
 
     # def retrieve_info(self):
+    def retrieve_queue2(self):
+        inlane_vehicles = self.inlane_vehicles
+        # 创建一个空的数组，用于存储每个车道的排队车辆数量
+        queue_counts = np.zeros(len(inlane_vehicles), dtype=int)
+        # 遍历每个车道
+        for lane_index, vehicles in enumerate(inlane_vehicles):
+            queue_count = 0
+            # 遍历该车道上的所有车辆
+            for vehicle_id in vehicles:
+                # 获取车辆的速度
+                speed = traci.vehicle.getSpeed(vehicle_id)
+                # 如果速度小于2 m/s，视为排队车辆
+                if speed < 2:
+                    queue_count += 1
+            # 将排队车辆数量存入结果数组
+            queue_counts[lane_index] = queue_count
+        return queue_counts
 
     def retrieve_queue(self):
         queue = self.inlane_halting_vehicle_number
         return queue
 
+    def retrieve_first_waiting(self):
+        waiting = np.zeros(len(self.inlane_vehicles))
+        for lane_index, vehicles in enumerate(self.inlane_vehicles):
+            if vehicles:
+                vehicles.sort(key=self.sumo.vehicle.getDistance, reverse=True)
+                waiting[lane_index] = self.sumo.vehicle.getWaitingTime(vehicles[0])
+        return waiting
+
     def retrieve_waiting_time(self):
         waiting_time = self.inlane_waiting_time
-
         return waiting_time
 
     def retrieve_stage(self):

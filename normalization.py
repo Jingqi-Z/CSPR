@@ -65,13 +65,13 @@ class RewardScaling:
 
 
 if __name__ == '__main__':
-    # obs_norm = Normalization(shape=3)
-    # obs_norm(np.array([1, 2, 3]))
-    # obs_norm(np.array([2, 4, 5]))
-    # print(obs_norm.running_ms.mean)
-    reward_scaling = RewardScaling(shape=1, gamma=0.98)
-    reward_scaling.reset()
-    r=-100
-    r = reward_scaling(r)
-    print(reward_scaling(-200))
-    print(reward_scaling(-200))
+    obs_norm = Normalization(shape=3)
+    obs_norm(np.array([1, 2, 3]))
+    obs_norm(np.array([2, 4, 5]))
+    print(obs_norm.running_ms.mean)
+    # reward_scaling = RewardScaling(shape=1, gamma=0.98)
+    # reward_scaling.reset()
+    # r=-100
+    # r = reward_scaling(r)
+    # print(reward_scaling(-200))
+    # print(reward_scaling(-200))

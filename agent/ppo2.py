@@ -36,13 +36,13 @@ class ReplayBuffer:
         # print(self.count)
 
     def numpy_to_tensor(self):
-        s = torch.tensor(self.s, dtype=torch.float)
-        a = torch.tensor(self.a, dtype=torch.float)
-        a_logprob = torch.tensor(self.a_logprob, dtype=torch.float)
-        r = torch.tensor(self.r, dtype=torch.float)
-        s_ = torch.tensor(self.s_, dtype=torch.float)
-        dw = torch.tensor(self.dw, dtype=torch.float)
-        done = torch.tensor(self.done, dtype=torch.float)
+        s = torch.tensor(self.s[:self.count], dtype=torch.float)
+        a = torch.tensor(self.a[:self.count], dtype=torch.float)
+        a_logprob = torch.tensor(self.a_logprob[:self.count], dtype=torch.float)
+        r = torch.tensor(self.r[:self.count], dtype=torch.float)
+        s_ = torch.tensor(self.s_[:self.count], dtype=torch.float)
+        dw = torch.tensor(self.dw[:self.count], dtype=torch.float)
+        done = torch.tensor(self.done[:self.count], dtype=torch.float)
 
         return s, a, a_logprob, r, s_, dw, done
 
@@ -239,7 +239,7 @@ class PPO_continuous():
         # Optimize policy for K epochs:
         for _ in range(self.K_epochs):
             # Random sampling and no repetition. 'False' indicates that training will continue even if the number of samples in the last time is less than mini_batch_size
-            for index in BatchSampler(SubsetRandomSampler(range(self.batch_size)), self.mini_batch_size, True):
+            for index in BatchSampler(SubsetRandomSampler(range(len(r))), self.mini_batch_size, True):
                 dist_now = self.actor.get_dist(s[index])
                 dist_entropy = dist_now.entropy().sum(1, keepdim=True)  # shape(mini_batch_size X 1)
                 a_logprob_now = dist_now.log_prob(a[index])

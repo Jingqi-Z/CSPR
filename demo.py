@@ -60,19 +60,19 @@ if __name__ == "__main__":
     # step_len = 0.5
     traci.start(["sumo-gui", "-c", "./net/single-stage2.sumocfg",
                  "--seed", '42',
-                 '--tripinfo-output', 'data/tripinfo.xml', '--device.emissions.probability', '1.0',
+                 '--tripinfo-output', 'data/act.xml', '--device.emissions.probability', '1.0',
                  '--emissions.volumetric-fuel', 'true',
                  # "--lanechange-output", "./net/lanechange_out.xml",
                  ],
                 label="default", port=7911
                 )
-    traci.trafficlight.setProgram('t', '8-phase')
+    traci.trafficlight.setProgram('t', '1')
     set_no_change_lane()
     cav_platoon = deque(maxlen=100)
     TL_id = 't'
     temp = {'left': deque(maxlen=1000), 'straight': deque(maxlen=1000)}
     TL = TrafficSignal(TL_id, 3, traci)
-    TL.set_stage_duration(0, 27)
+    # TL.set_stage_duration(0, 27)
     t = 0.0
     phase = 0
     num_p = 2
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         6: [0, 0, 0, 0, 1, 1, 0, 0],
         7: [0, 0, 0, 0, 0, 0, 1, 1],
     }
-    while t < 900:
+    while t <= 1799.5:
         t = traci.simulation.getTime()
         traci.simulationStep()
         platoons_temp = get_nearest_platoon(TL_id, num=num_p)
@@ -147,6 +147,6 @@ if __name__ == "__main__":
             for veh_id in vehicles:
                 if "cav" in veh_id.lower():
                     vehicle_loss[veh_id] = traci.vehicle.getTimeLoss(veh_id)
-    print(vehicle_loss)
+    # print(vehicle_loss)
     print(np.mean(list(vehicle_loss.values())))
     traci.close()

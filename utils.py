@@ -57,7 +57,7 @@ def get_route_vehicles(route) -> list:
     return vehicles
 
 
-def get_nearest_platoon(tl, max_len=8, num=1):
+def get_nearest_platoon(tl, max_len=4, num=1):
     """
     This function is used to get the nearest platoons to the traffic light.
 
