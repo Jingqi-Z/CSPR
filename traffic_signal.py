@@ -166,25 +166,6 @@ class TrafficSignal:
         pressure = self.outlane_vehicle_number - self.inlane_vehicle_number
         return pressure
 
-    # def retrieve_info(self):
-    def retrieve_queue2(self):
-        inlane_vehicles = self.inlane_vehicles
-        # 创建一个空的数组，用于存储每个车道的排队车辆数量
-        queue_counts = np.zeros(len(inlane_vehicles), dtype=int)
-        # 遍历每个车道
-        for lane_index, vehicles in enumerate(inlane_vehicles):
-            queue_count = 0
-            # 遍历该车道上的所有车辆
-            for vehicle_id in vehicles:
-                # 获取车辆的速度
-                speed = traci.vehicle.getSpeed(vehicle_id)
-                # 如果速度小于2 m/s，视为排队车辆
-                if speed < 2:
-                    queue_count += 1
-            # 将排队车辆数量存入结果数组
-            queue_counts[lane_index] = queue_count
-        return queue_counts
-
     def retrieve_queue(self):
         queue = self.inlane_halting_vehicle_number
         return queue
